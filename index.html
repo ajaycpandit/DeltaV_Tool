@@ -1,0 +1,1099 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FHX → Excel Converter</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg:       #0e0f11;
+    --surface:  #16181c;
+    --border:   #2a2d34;
+    --border2:  #3a3e47;
+    --accent:   #00d4ff;
+    --accent2:  #ff6b35;
+    --green:    #00e676;
+    --yellow:   #ffd740;
+    --red:      #ff5252;
+    --text:     #e8eaed;
+    --muted:    #7a8494;
+    --dim:      #3e4452;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--surface);
+  }
+  .logo-mark {
+    width: 38px; height: 38px;
+    border: 2px solid var(--accent);
+    display: grid; place-items: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; font-weight: 600;
+    color: var(--accent);
+    letter-spacing: 0;
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-size: 15px; font-weight: 500; letter-spacing: 0.04em;
+    color: var(--text);
+  }
+  header h1 span { color: var(--accent); }
+  .badge {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    border: 1px solid var(--border2);
+    padding: 3px 8px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── main layout ── */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    grid-template-rows: 1fr;
+    height: calc(100vh - 61px);
+  }
+
+  /* ── left panel ── */
+  .left-panel {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 14px 20px 10px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  /* ── drop zone ── */
+  .drop-zone {
+    margin: 20px;
+    border: 1.5px dashed var(--border2);
+    padding: 36px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    background: linear-gradient(135deg, rgba(0,212,255,0.03) 0%, transparent 60%);
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: rgba(0,212,255,0.06);
+  }
+  .drop-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .drop-icon {
+    font-size: 28px; margin-bottom: 10px; display: block;
+    filter: grayscale(0.4);
+  }
+  .drop-zone p {
+    font-size: 13px; color: var(--muted); line-height: 1.6;
+  }
+  .drop-zone p strong { color: var(--text); }
+  .drop-zone p em {
+    font-style: normal;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+  }
+
+  /* ── file info card ── */
+  .file-card {
+    margin: 0 20px;
+    border: 1px solid var(--border2);
+    padding: 14px 16px;
+    display: none;
+    gap: 12px;
+    align-items: flex-start;
+    background: rgba(255,107,53,0.05);
+    border-left: 3px solid var(--accent2);
+  }
+  .file-card.visible { display: flex; }
+  .file-card-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+  .file-card-info { flex: 1; min-width: 0; }
+  .file-card-name {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; font-weight: 600;
+    color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .file-card-meta {
+    font-size: 11px; color: var(--muted); margin-top: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+  .file-card-remove {
+    background: none; border: none;
+    color: var(--muted); cursor: pointer; font-size: 16px; padding: 0;
+    line-height: 1; flex-shrink: 0;
+    transition: color 0.15s;
+  }
+  .file-card-remove:hover { color: var(--red); }
+
+  /* ── options ── */
+  .options-section {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+  .options-section h3 {
+    font-size: 11px;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .option-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .option-row:last-child { border-bottom: none; }
+  .option-label { font-size: 13px; color: var(--text); }
+  .option-sub { font-size: 11px; color: var(--muted); margin-top: 1px; }
+  .toggle {
+    width: 38px; height: 20px;
+    background: var(--dim);
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.2s;
+    border: none; outline: none; flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); }
+  .toggle::after {
+    content: ''; position: absolute;
+    width: 14px; height: 14px;
+    background: white; border-radius: 50%;
+    top: 3px; left: 3px;
+    transition: transform 0.2s;
+  }
+  .toggle.on::after { transform: translateX(18px); }
+
+  /* ── run button ── */
+  .run-btn {
+    margin: 16px 20px;
+    padding: 13px;
+    background: var(--accent);
+    color: var(--bg);
+    border: none;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    width: calc(100% - 40px);
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .run-btn:hover:not(:disabled) { background: #33dcff; }
+  .run-btn:disabled {
+    background: var(--dim); color: var(--muted); cursor: not-allowed;
+  }
+  .run-btn.running {
+    background: var(--yellow); color: var(--bg);
+    animation: pulse-btn 1.2s ease-in-out infinite;
+  }
+  @keyframes pulse-btn {
+    0%,100% { opacity: 1; } 50% { opacity: 0.75; }
+  }
+
+  /* ── stats bar ── */
+  .stats-bar {
+    margin: 0 20px 16px;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+  }
+  .stat-box {
+    border: 1px solid var(--border);
+    padding: 10px 12px;
+    background: var(--surface);
+  }
+  .stat-val {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 20px; font-weight: 600;
+    color: var(--accent);
+  }
+  .stat-label {
+    font-size: 10px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.08em;
+    margin-top: 2px;
+  }
+
+  /* ── right panel ── */
+  .right-panel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── progress terminal ── */
+  .terminal-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .terminal-dots { display: flex; gap: 6px; }
+  .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .dot.r { background: #ff5f57; }
+  .dot.y { background: #febc2e; }
+  .dot.g { background: #28c840; }
+  .terminal-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; color: var(--muted);
+    letter-spacing: 0.06em;
+  }
+  .terminal-status {
+    margin-left: auto;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 2px;
+  }
+  .terminal-status.idle    { background: var(--dim);   color: var(--muted); }
+  .terminal-status.running { background: rgba(255,215,64,0.15); color: var(--yellow); }
+  .terminal-status.done    { background: rgba(0,230,118,0.12); color: var(--green); }
+  .terminal-status.error   { background: rgba(255,82,82,0.12);  color: var(--red); }
+
+  .terminal-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    line-height: 1.7;
+    background: #0b0c0e;
+  }
+  .terminal-body::-webkit-scrollbar { width: 6px; }
+  .terminal-body::-webkit-scrollbar-track { background: transparent; }
+  .terminal-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  .log-line {
+    display: flex; gap: 12px; align-items: flex-start;
+    animation: fadein 0.15s ease;
+  }
+  @keyframes fadein { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+  .log-ts   { color: var(--dim); flex-shrink: 0; }
+  .log-icon { flex-shrink: 0; width: 14px; text-align: center; }
+  .log-msg  { flex: 1; }
+
+  .log-line.info   .log-msg { color: var(--text); }
+  .log-line.step   .log-msg { color: var(--accent); font-weight: 500; }
+  .log-line.ok     .log-msg { color: var(--green); }
+  .log-line.warn   .log-msg { color: var(--yellow); }
+  .log-line.error  .log-msg { color: var(--red); }
+  .log-line.header .log-msg { color: var(--accent2); font-weight: 600; font-size: 13px; }
+  .log-line.dim    .log-msg { color: var(--muted); }
+  .log-line.data   .log-msg { color: #b0c4de; }
+
+  /* progress bar */
+  .progress-strip {
+    flex-shrink: 0;
+    height: 3px;
+    background: var(--border);
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), #66e5ff);
+    width: 0%;
+    transition: width 0.3s ease;
+  }
+
+  /* ── results panel ── */
+  .results-panel {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+    flex-shrink: 0;
+    max-height: 0;
+    transition: max-height 0.4s ease;
+  }
+  .results-panel.visible { max-height: 220px; }
+  .results-inner { padding: 16px 20px; }
+  .results-title {
+    font-size: 11px; font-family: 'IBM Plex Mono', monospace;
+    color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .sheet-list {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px;
+  }
+  .sheet-pill {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    border: 1px solid var(--border2);
+    padding: 5px 10px;
+    color: var(--text);
+    display: flex; align-items: center; gap: 6px;
+    animation: fadein 0.2s ease;
+  }
+  .sheet-pill .dot2 { width: 6px; height: 6px; border-radius: 50%; }
+  .pill-abort  { border-color: #ff5252; } .pill-abort  .dot2 { background: #ff5252; }
+  .pill-hold   { border-color: #ff9800; } .pill-hold   .dot2 { background: #ff9800; }
+  .pill-restart{ border-color: #00bcd4; } .pill-restart .dot2 { background: #00bcd4; }
+  .pill-run    { border-color: var(--green); } .pill-run .dot2 { background: var(--green); }
+  .pill-other  { border-color: var(--muted); } .pill-other .dot2 { background: var(--muted); }
+
+  .dl-btn {
+    padding: 10px 24px;
+    background: var(--green);
+    color: var(--bg);
+    border: none;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer; letter-spacing: 0.06em;
+    transition: all 0.2s;
+    display: inline-flex; align-items: center; gap: 8px;
+  }
+  .dl-btn:hover { background: #33f088; transform: translateY(-1px); }
+
+  /* ── cursor blink ── */
+  .cursor {
+    display: inline-block; width: 7px; height: 13px;
+    background: var(--accent); vertical-align: text-bottom;
+    animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* scrollbar global */
+  * { scrollbar-width: thin; scrollbar-color: var(--border2) transparent; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">FHX</div>
+  <h1>DeltaV Phase Export <span>→ Excel</span> Converter</h1>
+  <div class="badge">v2.0 / SFC PARSER</div>
+</header>
+
+<main>
+  <!-- ── LEFT ── -->
+  <div class="left-panel">
+    <div class="section-label">// input configuration</div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".fhx"/>
+      <span class="drop-icon">📂</span>
+      <p><strong>Drop your .fhx file here</strong><br>or click to browse<br><br>
+      Accepts <em>DeltaV Phase Export</em> files<br>
+      UTF-16 LE encoding supported</p>
+    </div>
+
+    <div class="file-card" id="fileCard">
+      <div class="file-card-icon">📄</div>
+      <div class="file-card-info">
+        <div class="file-card-name" id="fileName">—</div>
+        <div class="file-card-meta" id="fileMeta">—</div>
+      </div>
+      <button class="file-card-remove" id="removeFile" title="Remove file">✕</button>
+    </div>
+
+    <div class="options-section">
+      <h3>// export options</h3>
+      <div class="option-row">
+        <div>
+          <div class="option-label">Embed transitions under steps</div>
+          <div class="option-sub">Show each step's outgoing transitions inline</div>
+        </div>
+        <button class="toggle on" id="optTransitions" onclick="toggleOpt(this)"></button>
+      </div>
+      <div class="option-row">
+        <div>
+          <div class="option-label">Include Summary sheet</div>
+          <div class="option-sub">Overview tab with all logic block stats</div>
+        </div>
+        <button class="toggle on" id="optSummary" onclick="toggleOpt(this)"></button>
+      </div>
+      <div class="option-row">
+        <div>
+          <div class="option-label">Alternating row colors</div>
+          <div class="option-sub">Color-banded rows for readability</div>
+        </div>
+        <button class="toggle on" id="optAltRows" onclick="toggleOpt(this)"></button>
+      </div>
+      <div class="option-row">
+        <div>
+          <div class="option-label">Include raw expressions</div>
+          <div class="option-sub">Full DeltaV expression strings in cells</div>
+        </div>
+        <button class="toggle on" id="optExpressions" onclick="toggleOpt(this)"></button>
+      </div>
+    </div>
+
+    <div class="stats-bar" id="statsBar">
+      <div class="stat-box"><div class="stat-val" id="statBlocks">—</div><div class="stat-label">Logic Blocks</div></div>
+      <div class="stat-box"><div class="stat-val" id="statSteps">—</div><div class="stat-label">Steps</div></div>
+      <div class="stat-box"><div class="stat-val" id="statActions">—</div><div class="stat-label">Actions</div></div>
+    </div>
+
+    <button class="run-btn" id="runBtn" disabled onclick="runConversion()">
+      <span id="runIcon">▶</span>
+      <span id="runLabel">PROCESS FILE</span>
+    </button>
+  </div>
+
+  <!-- ── RIGHT ── -->
+  <div class="right-panel">
+    <div class="terminal-header">
+      <div class="terminal-dots">
+        <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+      </div>
+      <div class="terminal-title">fhx-parser — process log</div>
+      <div class="terminal-status idle" id="termStatus">IDLE</div>
+    </div>
+
+    <div class="progress-strip">
+      <div class="progress-fill" id="progressFill"></div>
+    </div>
+
+    <div class="terminal-body" id="terminal">
+      <div class="log-line dim">
+        <span class="log-ts">00:00.000</span>
+        <span class="log-icon">·</span>
+        <span class="log-msg">Waiting for input file... <span class="cursor"></span></span>
+      </div>
+    </div>
+
+    <div class="results-panel" id="resultsPanel">
+      <div class="results-inner">
+        <div class="results-title">// output sheets generated</div>
+        <div class="sheet-list" id="sheetList"></div>
+        <button class="dl-btn" id="dlBtn" style="display:none" onclick="downloadExcel()">
+          ⬇ Download Excel File
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let currentFile = null;
+let currentBuffer = null;   // read immediately on drop/select — avoids permission errors
+let excelWorkbook = null;
+let startTime = null;
+
+const opts = {
+  transitions: true,
+  summary: true,
+  altRows: true,
+  expressions: true,
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UI HELPERS
+// ─────────────────────────────────────────────────────────────────────────────
+function toggleOpt(btn) {
+  btn.classList.toggle('on');
+  const key = btn.id.replace('opt','').toLowerCase();
+  opts[key] = btn.classList.contains('on');
+}
+
+function ts() {
+  if (!startTime) return '00:00.000';
+  const d = Date.now() - startTime;
+  const s = Math.floor(d / 1000);
+  const ms = d % 1000;
+  const m = Math.floor(s / 60);
+  return `${String(m).padStart(2,'0')}:${String(s%60).padStart(2,'0')}.${String(ms).padStart(3,'0')}`;
+}
+
+function log(msg, type='info', icon='›') {
+  const t = document.getElementById('terminal');
+  const line = document.createElement('div');
+  line.className = `log-line ${type}`;
+  line.innerHTML = `<span class="log-ts">${ts()}</span><span class="log-icon">${icon}</span><span class="log-msg">${msg}</span>`;
+  t.appendChild(line);
+  t.scrollTop = t.scrollHeight;
+}
+
+function setProgress(pct) {
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+function setStatus(s) {
+  const el = document.getElementById('termStatus');
+  el.textContent = s.toUpperCase();
+  el.className = 'terminal-status ' + s;
+}
+
+function clearTerminal() {
+  document.getElementById('terminal').innerHTML = '';
+}
+
+function formatBytes(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(2) + ' MB';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FILE HANDLING
+// ─────────────────────────────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if (f) loadFile(f);
+});
+fileInput.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+document.getElementById('removeFile').addEventListener('click', clearFile);
+
+function loadFile(f) {
+  currentFile = f;
+  currentBuffer = null;
+
+  // Read the buffer IMMEDIATELY while the file reference is still valid.
+  // Deferring to button-click time causes "permission denied" errors in some browsers.
+  const reader = new FileReader();
+  reader.onload = e => {
+    currentBuffer = e.target.result;
+    document.getElementById('runBtn').disabled = false;
+    log(`File read into memory: ${formatBytes(currentBuffer.byteLength)}`, 'ok', '✓');
+    log(`Ready to process — click PROCESS FILE`, 'dim', '·');
+  };
+  reader.onerror = () => {
+    log(`Failed to read file: ${reader.error}`, 'error', '✗');
+  };
+  reader.readAsArrayBuffer(f);
+
+  document.getElementById('fileName').textContent = f.name;
+  document.getElementById('fileMeta').textContent =
+    `${formatBytes(f.size)} · ${f.lastModified ? new Date(f.lastModified).toLocaleDateString() : 'unknown date'}`;
+  document.getElementById('fileCard').classList.add('visible');
+  resetResults();
+
+  clearTerminal();
+  startTime = null;
+  log(`File selected: ${f.name}`, 'step', '○');
+  log(`Size: ${formatBytes(f.size)} · reading into memory...`, 'dim', '·');
+  setProgress(0);
+  setStatus('idle');
+}
+
+function clearFile() {
+  currentFile = null;
+  currentBuffer = null;
+  document.getElementById('fileCard').classList.remove('visible');
+  document.getElementById('runBtn').disabled = true;
+  fileInput.value = '';
+  resetResults();
+  document.getElementById('statBlocks').textContent = '—';
+  document.getElementById('statSteps').textContent = '—';
+  document.getElementById('statActions').textContent = '—';
+}
+
+function resetResults() {
+  excelWorkbook = null;
+  document.getElementById('resultsPanel').classList.remove('visible');
+  document.getElementById('sheetList').innerHTML = '';
+  document.getElementById('dlBtn').style.display = 'none';
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SLEEP HELPER (for visual pacing)
+// ─────────────────────────────────────────────────────────────────────────────
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FHX PARSER
+// ─────────────────────────────────────────────────────────────────────────────
+function decodeFhx(buffer) {
+  // Try UTF-16 LE first (has BOM FF FE)
+  const bytes = new Uint8Array(buffer);
+  if (bytes[0] === 0xFF && bytes[1] === 0xFE) {
+    const dec = new TextDecoder('utf-16le');
+    return dec.decode(buffer).replace(/^\uFEFF/, '');
+  }
+  // Fall back to UTF-8
+  return new TextDecoder('utf-8').decode(buffer);
+}
+
+function extractBraceBlock(text, start) {
+  let depth = 0, i = start;
+  while (i < text.length) {
+    if (text[i] === '{') depth++;
+    else if (text[i] === '}') { depth--; if (depth === 0) return text.slice(start, i+1); }
+    i++;
+  }
+  return '';
+}
+
+function parseActions(stepContent) {
+  const actions = [];
+  const re = /ACTION NAME="([^"]+)"\s*\{/g;
+  let m;
+  while ((m = re.exec(stepContent)) !== null) {
+    const b = extractBraceBlock(stepContent, m.index + m[0].length - 1);
+    const g = (pattern, flags='') => { const r = new RegExp(pattern, flags).exec(b); return r ? r[1] : ''; };
+    const expr = (() => {
+      const r = /EXPRESSION="([\s\S]*?)"(?=\s+(?:DELAY|CONFIRM)|\s*\})/.exec(b);
+      return r ? r[1].trim() : '';
+    })();
+    actions.push({
+      action:             m[1],
+      description:        g('DESCRIPTION="([^"]+)"'),
+      type:               g('ACTION_TYPE=(\\S+)'),
+      qualifier:          g('QUALIFIER=(\\S+)'),
+      expression:         expr,
+      delay_time:         g('DELAY_TIME=(\\S+)'),
+      delay_expression:   g('DELAY_EXPRESSION="([^"]+)"'),
+      confirm_expression: g('CONFIRM_EXPRESSION="([^"]+)"'),
+      confirm_timeout:    g('CONFIRM_TIME_OUT=(\\S+)'),
+    });
+  }
+  return actions;
+}
+
+function parseFbBlocks(text) {
+  const blocks = {};
+  const fbRe = /FUNCTION_BLOCK_DEFINITION NAME="([^"]+)"[^\{]*\{/g;
+  let m;
+  while ((m = fbRe.exec(text)) !== null) {
+    const name = m[1];
+    const block = extractBraceBlock(text, m.index + m[0].length - 1);
+    const desc = /DESCRIPTION="([^"]+)"/.exec(block);
+    const sfcM = /SFC_ALGORITHM\s*\{/.exec(block);
+    const sfcBlock = sfcM ? extractBraceBlock(block, sfcM.index + sfcM[0].length - 1) : '';
+
+    // Steps
+    const steps = {};
+    const stepRe = /STEP NAME="([^"]+)"\s*\{/g;
+    let sm;
+    while ((sm = stepRe.exec(sfcBlock)) !== null) {
+      const sb = extractBraceBlock(sfcBlock, sm.index + sm[0].length - 1);
+      const rect = /RECTANGLE\s*=\s*\{\s*X=(\d+)\s*Y=(\d+)/.exec(sb);
+      steps[sm[1]] = {
+        x: rect ? +rect[1] : 0,
+        y: rect ? +rect[2] : 0,
+        actions: parseActions(sb),
+      };
+    }
+
+    // Transitions
+    const transitions = {};
+    const transRe = /TRANSITION NAME="([^"]+)"\s*\{/g;
+    let tm;
+    while ((tm = transRe.exec(sfcBlock)) !== null) {
+      const tb = extractBraceBlock(sfcBlock, tm.index + tm[0].length - 1);
+      const pos  = /POSITION\s*=\s*\{\s*X=(\d+)\s*Y=(\d+)/.exec(tb);
+      const tdsc = /DESCRIPTION="([^"]+)"/.exec(tb);
+      const expr = /EXPRESSION="([^"]*)"/.exec(tb);
+      const term = /TERMINATION=(\w+)/.exec(tb);
+      transitions[tm[1]] = {
+        x:           pos  ? +pos[1]  : 0,
+        y:           pos  ? +pos[2]  : 0,
+        description: tdsc ? tdsc[1].trim() : '',
+        expression:  expr ? expr[1].trim() : '',
+        termination: term ? term[1] : 'F',
+      };
+    }
+
+    // Map transitions → preceding step via Y coords
+    const step_to_trans = {};
+    Object.keys(steps).forEach(s => step_to_trans[s] = []);
+    Object.entries(transitions).forEach(([tname, tp]) => {
+      const { y: ty, x: tx } = tp;
+      let candidates = Object.entries(steps)
+        .filter(([,v]) => v.y < ty && Math.abs(v.x - tx) < 150)
+        .map(([sn, v]) => [ty - v.y, v.x, sn]);
+      if (!candidates.length) {
+        candidates = Object.entries(steps)
+          .filter(([,v]) => v.y < ty)
+          .map(([sn, v]) => [ty - v.y, v.x, sn]);
+      }
+      if (candidates.length) {
+        candidates.sort((a,b) => a[0]-b[0]);
+        step_to_trans[candidates[0][2]].push(tname);
+      }
+    });
+
+    const ordered_steps = Object.entries(steps).sort((a,b) => a[1].y - b[1].y);
+
+    blocks[name] = {
+      description: desc ? desc[1] : '',
+      ordered_steps,
+      transitions,
+      step_to_trans,
+    };
+  }
+  return blocks;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXCEL BUILDER  (SheetJS / xlsx.js)
+// ─────────────────────────────────────────────────────────────────────────────
+const LOGIC_LABEL = {
+  'CNT_CIP_INIT_ABT'      : 'ABORT_STOP',
+  'PROMPT_LOOP'           : 'PROMPT_LOOP',
+  '__6301D2D9_179FAC11__' : 'HOLD',
+  '__6234329E_13C1E835__' : 'RESTART',
+  '__63699255_143E0A8C__' : 'RUNNING',
+  '__6261087C_00C321A4__' : 'CONDITION',
+};
+
+// Color themes per sheet
+const THEME = {
+  ABORT_STOP:  { step: '992222', trans: '661111', hdr: 'CC3333' },
+  HOLD:        { step: '7A4F00', trans: '5C3A00', hdr: 'B87A00' },
+  RESTART:     { step: '005577', trans: '003D57', hdr: '0088BB' },
+  RUNNING:     { step: '1A5C2A', trans: '0D4020', hdr: '2E9449' },
+  PROMPT_LOOP: { step: '4A2C7A', trans: '321A5C', hdr: '7B4DBB' },
+  CONDITION:   { step: '3D3D3D', trans: '292929', hdr: '666666' },
+};
+const DEFAULT_THEME = { step: '1F3864', trans: '0D1B4B', hdr: '2E75B6' };
+
+function xColor(hex) { return { argb: 'FF' + hex.toUpperCase() }; }
+
+function cellStyle(wb, fgHex, bold=false, size=10, fontColor='FFFFFF', wrapText=false, hAlign='left') {
+  return {
+    font: { name: 'Calibri', bold, size, color: xColor(fontColor) },
+    fill: { type: 'pattern', pattern: 'solid', fgColor: xColor(fgHex) },
+    alignment: { wrapText, vertical: 'top', horizontal: hAlign },
+    border: {
+      top:    { style: 'thin', color: xColor('555555') },
+      bottom: { style: 'thin', color: xColor('555555') },
+      left:   { style: 'thin', color: xColor('555555') },
+      right:  { style: 'thin', color: xColor('555555') },
+    },
+  };
+}
+
+function buildExcel(blocks) {
+  const wb = XLSX.utils.book_new();
+
+  // ── SUMMARY ──
+  if (opts.summary) {
+    const wsData = [
+      ['Logic Block', 'FB Definition Name', 'Description', 'Steps', 'Total Actions', 'Transitions', 'Sheet Tab'],
+    ];
+    Object.entries(blocks).forEach(([fbName, data]) => {
+      const label = LOGIC_LABEL[fbName] || fbName.slice(0,20);
+      const totalAct = data.ordered_steps.reduce((s,[,d]) => s + d.actions.length, 0);
+      wsData.push([label, fbName, data.description, data.ordered_steps.length, totalAct, Object.keys(data.transitions).length, label.slice(0,31)]);
+    });
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [16,30,48,8,14,13,18].map(w => ({wch:w}));
+    XLSX.utils.book_append_sheet(wb, ws, 'SUMMARY');
+  }
+
+  // ── logic sheets ──
+  Object.entries(blocks).forEach(([fbName, data]) => {
+    const label = (LOGIC_LABEL[fbName] || fbName.slice(0,31)).slice(0,31);
+    const theme = THEME[label] || DEFAULT_THEME;
+
+    const rows = [];
+    // Title row
+    rows.push([`Phase Logic: ${label}   |   ${data.description}`,'','','','','','','','','']);
+
+    // Column headers
+    const hdrs = ['Row Type','Step / Transition','Description','Action','Qualifier',
+                  opts.expressions?'Expression':'(expressions off)',
+                  'Delay','Delay Expression','Confirm Expression','Confirm Timeout'];
+    rows.push(hdrs);
+
+    let actionSeq = 0;
+    data.ordered_steps.forEach(([stepName, stepData], si) => {
+      // Step header
+      rows.push([`STEP ${si+1}:  ${stepName}   (${stepData.actions.length} action${stepData.actions.length!==1?'s':''})`,
+                 '','','','','','','','','']);
+
+      // Actions
+      stepData.actions.forEach((act, ai) => {
+        actionSeq++;
+        rows.push([
+          'ACTION',
+          stepName,
+          act.description,
+          act.action,
+          act.qualifier,
+          opts.expressions ? act.expression : '—',
+          act.delay_time || '',
+          act.delay_expression || '',
+          act.confirm_expression || '',
+          act.confirm_timeout || '',
+        ]);
+      });
+
+      // Transitions for this step
+      if (opts.transitions) {
+        const transNames = data.step_to_trans[stepName] || [];
+        if (transNames.length) {
+          rows.push([`↓ TRANSITION${transNames.length>1?'S':''} FROM: ${stepName}  (${transNames.length})`,
+                     '','','','','','','','','']);
+          transNames.forEach((tname, ti) => {
+            const tr = data.transitions[tname];
+            rows.push([
+              'TRANSITION',
+              tname,
+              tr.description,
+              tr.termination === 'T' ? '⏹ END' : '→ NEXT',
+              '',
+              opts.expressions ? tr.expression : '—',
+              '','','','',
+            ]);
+          });
+        }
+      }
+
+      rows.push(['','','','','','','','','','']); // spacer
+    });
+
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [14,22,32,10,10,55,10,36,32,14].map(w => ({wch:w}));
+    XLSX.utils.book_append_sheet(wb, ws, label);
+  });
+
+  return wb;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN CONVERSION FLOW
+// ─────────────────────────────────────────────────────────────────────────────
+async function runConversion() {
+  if (!currentFile || !currentBuffer) return;
+
+  // Reset UI
+  clearTerminal();
+  resetResults();
+  startTime = Date.now();
+  setStatus('running');
+  setProgress(0);
+
+  const runBtn = document.getElementById('runBtn');
+  runBtn.disabled = true;
+  runBtn.classList.add('running');
+  document.getElementById('runIcon').textContent = '◼';
+  document.getElementById('runLabel').textContent = 'PROCESSING...';
+
+  try {
+    // ── STEP 1: Use pre-read buffer ──
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'header', ' ');
+    log(`FHX → EXCEL CONVERTER  ·  ${new Date().toLocaleTimeString()}`, 'header', '▶');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'header', ' ');
+    await sleep(80);
+
+    log('Loading file buffer from memory...', 'step', '○');
+    setProgress(5);
+    await sleep(120);
+
+    const buffer = currentBuffer;   // already read at file-select time
+    const bytes = new Uint8Array(buffer);
+    const isUtf16 = bytes[0] === 0xFF && bytes[1] === 0xFE;
+    log(`Buffer loaded: ${formatBytes(buffer.byteLength)}`, 'ok', '✓');
+    log(`Encoding detected: ${isUtf16 ? 'UTF-16 LE (BOM present)' : 'UTF-8'}`, 'data', '·');
+    await sleep(80);
+
+    // ── STEP 2: Decode ──
+    log('Decoding character encoding...', 'step', '○');
+    setProgress(12);
+    await sleep(100);
+    const text = decodeFhx(buffer);
+    log(`Decoded: ${text.length.toLocaleString()} characters`, 'ok', '✓');
+    await sleep(60);
+
+    // ── STEP 3: Schema check ──
+    log('Scanning file schema...', 'step', '○');
+    setProgress(18);
+    await sleep(100);
+    const versionM = /VERSION_STR="([^"]+)"/.exec(text);
+    const localeM  = /LOCALE="([^"]+)"/.exec(text);
+    const exportTimeM = /\/\* "([^"]+)" \*\//.exec(text);
+    if (versionM) log(`DeltaV version: ${versionM[1]}`, 'data', '·');
+    if (localeM)  log(`Locale: ${localeM[1]}`, 'data', '·');
+    if (exportTimeM) log(`Export timestamp: ${exportTimeM[1]}`, 'data', '·');
+    await sleep(80);
+
+    // ── STEP 4: Discover FB blocks ──
+    log('Discovering FUNCTION_BLOCK_DEFINITION blocks...', 'step', '○');
+    setProgress(25);
+    await sleep(120);
+    const fbNames = [...text.matchAll(/FUNCTION_BLOCK_DEFINITION NAME="([^"]+)"/g)].map(m => m[1]);
+    log(`Found ${fbNames.length} function block definition${fbNames.length!==1?'s':''}`, 'ok', '✓');
+    fbNames.forEach(n => {
+      const label = LOGIC_LABEL[n] ? ` → [${LOGIC_LABEL[n]}]` : '';
+      log(`  · ${n}${label}`, 'dim', ' ');
+    });
+    await sleep(100);
+
+    // ── STEP 5: Parse each block ──
+    log('Parsing SFC_ALGORITHM blocks...', 'step', '○');
+    setProgress(35);
+    await sleep(100);
+    const blocks = parseFbBlocks(text);
+    await sleep(80);
+
+    let totalSteps = 0, totalActions = 0, totalTrans = 0;
+    for (const [fbName, data] of Object.entries(blocks)) {
+      const label = LOGIC_LABEL[fbName] || fbName;
+      const steps  = data.ordered_steps.length;
+      const acts   = data.ordered_steps.reduce((s,[,d]) => s + d.actions.length, 0);
+      const trans  = Object.keys(data.transitions).length;
+      totalSteps   += steps;
+      totalActions += acts;
+      totalTrans   += trans;
+
+      if (steps > 0) {
+        log(`  [${label}]  ${steps} step${steps!==1?'s':''}, ${acts} action${acts!==1?'s':''}, ${trans} transition${trans!==1?'s':''}`, 'data', '·');
+        await sleep(60);
+
+        // Per-step breakdown
+        for (const [stepName, stepData] of data.ordered_steps) {
+          const tlist = data.step_to_trans[stepName] || [];
+          log(`    STEP ${stepName}  (${stepData.actions.length} actions) ${tlist.length ? '→ ' + tlist.join(', ') : ''}`, 'dim', ' ');
+          await sleep(18);
+        }
+      } else {
+        log(`  [${label}]  (no SFC steps)`, 'dim', '·');
+        await sleep(30);
+      }
+      setProgress(35 + Math.floor(Object.keys(blocks).indexOf(fbName) / Object.keys(blocks).length * 30));
+    }
+
+    // Update stats
+    document.getElementById('statBlocks').textContent  = Object.keys(blocks).length;
+    document.getElementById('statSteps').textContent   = totalSteps;
+    document.getElementById('statActions').textContent = totalActions;
+
+    log(`Parse complete: ${totalSteps} steps · ${totalActions} actions · ${totalTrans} transitions`, 'ok', '✓');
+    await sleep(100);
+
+    // ── STEP 6: Map transitions to steps ──
+    log('Mapping transitions → parent steps via XY coordinates...', 'step', '○');
+    setProgress(68);
+    await sleep(120);
+
+    let mappedCount = 0, multiCount = 0;
+    for (const [fbName, data] of Object.entries(blocks)) {
+      for (const [stepName, transList] of Object.entries(data.step_to_trans)) {
+        if (transList.length > 0) {
+          mappedCount += transList.length;
+          if (transList.length > 1) {
+            multiCount++;
+            const label = LOGIC_LABEL[fbName] || fbName;
+            log(`  [${label}] ${stepName} → ${transList.length} transitions: ${transList.join(', ')}`, 'warn', '⚡');
+            await sleep(30);
+          }
+        }
+      }
+    }
+    log(`${mappedCount} transitions mapped · ${multiCount} divergent branch${multiCount!==1?'es':''}`, 'ok', '✓');
+    await sleep(100);
+
+    // ── STEP 7: Build Excel ──
+    log('Building Excel workbook...', 'step', '○');
+    setProgress(75);
+    await sleep(120);
+
+    if (opts.summary) {
+      log('  Creating SUMMARY sheet', 'dim', '·');
+      await sleep(40);
+    }
+
+    const sheetList = document.getElementById('sheetList');
+    const pillColors = {
+      ABORT_STOP: 'abort', HOLD: 'hold', RESTART: 'restart', RUNNING: 'run'
+    };
+
+    for (const [fbName, data] of Object.entries(blocks)) {
+      const label = LOGIC_LABEL[fbName] || fbName;
+      const acts  = data.ordered_steps.reduce((s,[,d]) => s + d.actions.length, 0);
+      if (data.ordered_steps.length > 0) {
+        log(`  Building sheet: ${label}  (${data.ordered_steps.length} steps, ${acts} actions)`, 'dim', '·');
+        await sleep(55);
+        const pill = document.createElement('div');
+        const pc = pillColors[label] || 'other';
+        pill.className = `sheet-pill pill-${pc}`;
+        pill.innerHTML = `<div class="dot2"></div>${label} <span style="color:var(--muted)">(${data.ordered_steps.length}s/${acts}a)</span>`;
+        sheetList.appendChild(pill);
+      }
+    }
+
+    excelWorkbook = buildExcel(blocks);
+    setProgress(92);
+    log('Workbook assembled', 'ok', '✓');
+    await sleep(100);
+
+    // ── STEP 8: Finalise ──
+    log('Finalising output...', 'step', '○');
+    await sleep(80);
+    const sheetCount = excelWorkbook.SheetNames.length;
+    log(`${sheetCount} sheet${sheetCount!==1?'s':''} ready for download`, 'ok', '✓');
+    setProgress(100);
+    await sleep(80);
+
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'header', ' ');
+    log(`DONE  ·  elapsed ${ts()}`, 'ok', '✓');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'header', ' ');
+
+    setStatus('done');
+    document.getElementById('resultsPanel').classList.add('visible');
+    document.getElementById('dlBtn').style.display = 'inline-flex';
+
+  } catch (err) {
+    log(`ERROR: ${err.message}`, 'error', '✗');
+    log(err.stack || '', 'dim', ' ');
+    setStatus('error');
+    setProgress(0);
+  } finally {
+    runBtn.disabled = false;
+    runBtn.classList.remove('running');
+    document.getElementById('runIcon').textContent = '▶';
+    document.getElementById('runLabel').textContent = 'PROCESS FILE';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOWNLOAD
+// ─────────────────────────────────────────────────────────────────────────────
+function downloadExcel() {
+  if (!excelWorkbook) return;
+  const baseName = (currentFile.name || 'output').replace(/\.fhx$/i, '');
+  XLSX.writeFile(excelWorkbook, `${baseName}_Logic.xlsx`);
+  log(`Downloaded: ${baseName}_Logic.xlsx`, 'ok', '⬇');
+}
+</script>
+</body>
+</html>
