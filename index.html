@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FHX → Excel Converter · DeltaV Phase Export</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0e0f11;--surface:#16181c;--surface2:#1e2126;
+  --border:#2a2d34;--border2:#3a3e47;
+  --accent:#00d4ff;--accent-dim:rgba(0,212,255,0.12);
+  --green:#00e676;--green-dim:rgba(0,230,118,0.1);
+  --yellow:#ffd740;--yellow-dim:rgba(255,215,64,0.1);
+  --red:#ff5252;--red-dim:rgba(255,82,82,0.1);
+  --orange:#ff6b35;
+  --text:#e8eaed;--muted:#7a8494;--dim:#3e4452;
+  --mono:'IBM Plex Mono',monospace;
+  --sans:'IBM Plex Sans',sans-serif;
+  --radius:6px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans)}
+/* ── layout ── */
+body{display:flex;flex-direction:column}
+header{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 28px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  flex-shrink:0;
+}
+.logo{
+  width:36px;height:36px;border:1.5px solid var(--accent);
+  display:grid;place-items:center;
+  font-family:var(--mono);font-size:10px;font-weight:600;
+  color:var(--accent);letter-spacing:0;flex-shrink:0;
+}
+header h1{font-size:14px;font-weight:500;letter-spacing:.04em}
+header h1 span{color:var(--accent)}
+.ver{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--muted);
+  border:1px solid var(--border2);padding:2px 8px;letter-spacing:.05em}
+
+.main{flex:1;display:grid;grid-template-columns:400px 1fr;min-height:0}
+@media(max-width:780px){.main{grid-template-columns:1fr;grid-template-rows:auto 1fr}}
+
+/* ── left panel ── */
+.left{
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  overflow-y:auto;
+}
+.panel-label{
+  font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  color:var(--muted);text-transform:uppercase;
+  padding:12px 18px 9px;border-bottom:1px solid var(--border);
+  background:var(--surface);flex-shrink:0;
+}
+
+/* drop zone */
+.drop-zone{
+  margin:16px;
+  border:1.5px dashed var(--border2);
+  padding:28px 16px;text-align:center;
+  cursor:pointer;transition:all .2s;
+  background:linear-gradient(135deg,var(--accent-dim) 0%,transparent 60%);
+  position:relative;
+}
+.drop-zone:hover,.drop-zone.over{border-color:var(--accent);background:rgba(0,212,255,.08)}
+.drop-zone input[type=file]{
+  position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%
+}
+.drop-zone .dz-icon{font-size:32px;margin-bottom:10px;display:block}
+.drop-zone p{font-size:13px;color:var(--muted);line-height:1.7}
+.drop-zone strong{color:var(--text)}
+.drop-zone code{font-family:var(--mono);font-size:11px;color:var(--accent)}
+
+/* file card */
+.file-card{
+  margin:0 16px;
+  border:1px solid var(--border2);border-left:3px solid var(--green);
+  padding:11px 14px;
+  display:none;gap:10px;align-items:center;
+  background:var(--green-dim);
+}
+.file-card.show{display:flex}
+.file-card .fc-name{
+  font-family:var(--mono);font-size:12px;font-weight:600;
+  color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1
+}
+.file-card .fc-meta{font-size:11px;color:var(--muted);margin-top:2px;font-family:var(--mono)}
+.file-card button{
+  background:none;border:none;color:var(--muted);cursor:pointer;
+  font-size:16px;padding:0 2px;line-height:1;flex-shrink:0;
+}
+.file-card button:hover{color:var(--red)}
+
+/* options */
+.opts{padding:14px 16px;border-top:1px solid var(--border)}
+.opts h3{font-family:var(--mono);font-size:9px;color:var(--muted);
+  letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+.opt-row{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:7px 0;border-bottom:1px solid var(--border)
+}
+.opt-row:last-child{border-bottom:none}
+.opt-label{font-size:13px;color:var(--text)}
+.opt-sub{font-size:11px;color:var(--muted);margin-top:1px}
+/* toggle */
+.toggle{
+  width:36px;height:19px;background:var(--dim);
+  border-radius:10px;position:relative;cursor:pointer;
+  border:none;outline:none;flex-shrink:0;transition:background .2s
+}
+.toggle.on{background:var(--accent)}
+.toggle::after{
+  content:'';position:absolute;width:13px;height:13px;
+  background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .2s
+}
+.toggle.on::after{transform:translateX(17px)}
+
+/* stats */
+.stats{
+  margin:14px 16px;
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px
+}
+.stat-box{
+  border:1px solid var(--border);padding:9px 10px;
+  background:var(--surface)
+}
+.stat-val{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--accent)}
+.stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.07em;margin-top:2px}
+
+/* run btn */
+.run-btn{
+  margin:0 16px 16px;
+  padding:12px;background:var(--accent);color:var(--bg);
+  border:none;font-family:var(--mono);font-size:13px;font-weight:600;
+  letter-spacing:.07em;cursor:pointer;width:calc(100% - 32px);
+  transition:all .2s;display:flex;align-items:center;
+  justify-content:center;gap:8px
+}
+.run-btn:hover:not(:disabled){background:#33dcff}
+.run-btn:disabled{background:var(--dim);color:var(--muted);cursor:not-allowed}
+.run-btn.running{background:var(--yellow);color:var(--bg)}
+
+/* ── right panel ── */
+.right{display:flex;flex-direction:column;min-height:0}
+.term-header{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 18px;background:var(--surface);
+  border-bottom:1px solid var(--border);flex-shrink:0
+}
+.win-dots{display:flex;gap:5px}
+.wdot{width:10px;height:10px;border-radius:50%}
+.term-title{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.04em}
+.term-status{
+  margin-left:auto;font-family:var(--mono);font-size:10px;
+  padding:2px 8px;border-radius:2px
+}
+.term-status.idle{background:var(--dim);color:var(--muted)}
+.term-status.running{background:var(--yellow-dim);color:var(--yellow)}
+.term-status.done{background:var(--green-dim);color:var(--green)}
+.term-status.error{background:var(--red-dim);color:var(--red)}
+
+.progress-strip{height:3px;background:var(--border);flex-shrink:0}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),#66e5ff);transition:width .3s}
+
+.terminal{
+  flex:1;overflow-y:auto;
+  padding:14px 18px;
+  font-family:var(--mono);font-size:12px;line-height:1.75;
+  background:#0b0c0e;
+  min-height:200px;
+}
+.terminal::-webkit-scrollbar{width:5px}
+.terminal::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+.line{display:flex;gap:10px;align-items:flex-start;
+  animation:li .12s ease}
+@keyframes li{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+.line .lts{color:var(--dim);flex-shrink:0;font-size:10px;padding-top:1px;min-width:60px}
+.line .lmsg{flex:1}
+.line.info .lmsg{color:var(--text)}
+.line.step .lmsg{color:var(--accent);font-weight:500}
+.line.ok   .lmsg{color:var(--green)}
+.line.warn .lmsg{color:var(--yellow)}
+.line.err  .lmsg{color:var(--red)}
+.line.head .lmsg{color:var(--orange);font-weight:600;font-size:13px}
+.line.dim  .lmsg{color:var(--muted)}
+.line.data .lmsg{color:#b0c4de}
+
+/* results */
+.results{
+  border-top:1px solid var(--border);
+  background:var(--surface);flex-shrink:0;
+  max-height:0;overflow:hidden;transition:max-height .35s ease
+}
+.results.show{max-height:200px}
+.results-inner{padding:14px 18px}
+.results-title{font-family:var(--mono);font-size:10px;color:var(--muted);
+  letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+.sheet-pills{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:12px}
+.spill{
+  font-family:var(--mono);font-size:11px;
+  border:1px solid var(--border2);padding:4px 9px;
+  color:var(--text);display:flex;align-items:center;gap:5px
+}
+.spill .sd{width:6px;height:6px;border-radius:50%}
+.spill-RUN    {border-color:#2e9449}.spill-RUN     .sd{background:#2e9449}
+.spill-ABORT  {border-color:#cc3333}.spill-ABORT   .sd{background:#cc3333}
+.spill-HOLD   {border-color:#b87a00}.spill-HOLD    .sd{background:#b87a00}
+.spill-RESTART{border-color:#0088bb}.spill-RESTART .sd{background:#0088bb}
+.spill-OTHER  {border-color:var(--muted)}.spill-OTHER .sd{background:var(--muted)}
+
+.dl-btn{
+  padding:9px 22px;background:var(--green);color:var(--bg);
+  border:none;font-family:var(--mono);font-size:12px;font-weight:600;
+  cursor:pointer;letter-spacing:.05em;
+  transition:all .2s;display:inline-flex;align-items:center;gap:7px
+}
+.dl-btn:hover{background:#33f088}
+
+/* cursor */
+.cur{display:inline-block;width:7px;height:12px;
+  background:var(--accent);vertical-align:text-bottom;
+  animation:bk 1s step-end infinite}
+@keyframes bk{0%,100%{opacity:1}50%{opacity:0}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">FHX</div>
+  <h1>DeltaV Phase Export <span>→ Excel</span> Converter</h1>
+  <div class="ver">v2.1 · SFC PARSER</div>
+</header>
+
+<div class="main">
+
+  <!-- LEFT -->
+  <div class="left">
+    <div class="panel-label">// input &amp; configuration</div>
+
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".fhx,.FHX"/>
+      <span class="dz-icon">📂</span>
+      <p><strong>Drop your .fhx file here</strong><br>or click to browse<br><br>
+         DeltaV Phase Export · <code>UTF-16 LE</code> supported</p>
+    </div>
+
+    <div class="file-card" id="fileCard">
+      <div>
+        <div class="fc-name" id="fcName">—</div>
+        <div class="fc-meta" id="fcMeta">—</div>
+      </div>
+      <button onclick="clearFile()" title="Remove">✕</button>
+    </div>
+
+    <div class="opts">
+      <h3>// export options</h3>
+      <div class="opt-row">
+        <div><div class="opt-label">Embed transitions under steps</div>
+             <div class="opt-sub">Show each step's outgoing transitions inline</div></div>
+        <button class="toggle on" id="optTransitions" onclick="this.classList.toggle('on')"></button>
+      </div>
+      <div class="opt-row">
+        <div><div class="opt-label">Include Summary sheet</div>
+             <div class="opt-sub">Overview tab with all logic block stats</div></div>
+        <button class="toggle on" id="optSummary" onclick="this.classList.toggle('on')"></button>
+      </div>
+      <div class="opt-row">
+        <div><div class="opt-label">Include raw expressions</div>
+             <div class="opt-sub">Full DeltaV expression strings in cells</div></div>
+        <button class="toggle on" id="optExpressions" onclick="this.classList.toggle('on')"></button>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-box"><div class="stat-val" id="sBlocks">—</div><div class="stat-lbl">Logic Blocks</div></div>
+      <div class="stat-box"><div class="stat-val" id="sSteps">—</div><div class="stat-lbl">Steps</div></div>
+      <div class="stat-box"><div class="stat-val" id="sActions">—</div><div class="stat-lbl">Actions</div></div>
+    </div>
+
+    <button class="run-btn" id="runBtn" disabled onclick="runConversion()">
+      ▶ &nbsp;PROCESS FILE
+    </button>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+    <div class="term-header">
+      <div class="win-dots">
+        <div class="wdot" style="background:#ff5f57"></div>
+        <div class="wdot" style="background:#febc2e"></div>
+        <div class="wdot" style="background:#28c840"></div>
+      </div>
+      <div class="term-title">fhx-parser — process log</div>
+      <div class="term-status idle" id="termStatus">IDLE</div>
+    </div>
+    <div class="progress-strip"><div class="progress-fill" id="pFill"></div></div>
+    <div class="terminal" id="terminal">
+      <div class="line dim"><span class="lts">--:--:---</span><span class="lmsg">Waiting for input file… <span class="cur"></span></span></div>
+    </div>
+    <div class="results" id="results">
+      <div class="results-inner">
+        <div class="results-title">// output sheets generated</div>
+        <div class="sheet-pills" id="sheetPills"></div>
+        <button class="dl-btn" id="dlBtn" onclick="downloadExcel()">⬇ &nbsp;Download Excel File</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── state ───────────────────────────────────────────────────────────────────
+let fileBuffer  = null;   // ArrayBuffer — read immediately on select/drop
+let fileNameStr = '';
+let excelWb     = null;
+let t0          = null;
+
+// ─── UI helpers ──────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+
+function ts(){
+  if(!t0) return '--:--:---';
+  const d=Date.now()-t0, ms=d%1000, s=Math.floor(d/1000)%60, m=Math.floor(d/60000);
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`;
+}
+
+function log(msg, type='dim'){
+  const t=$('terminal'), row=document.createElement('div');
+  row.className='line '+type;
+  row.innerHTML=`<span class="lts">${ts()}</span><span class="lmsg">${msg}</span>`;
+  t.appendChild(row); t.scrollTop=t.scrollHeight;
+}
+
+function setProgress(p){ $('pFill').style.width=p+'%'; }
+
+function setStatus(s){
+  const el=$('termStatus');
+  el.className='term-status '+s;
+  el.textContent=({idle:'IDLE',running:'RUNNING',done:'DONE',error:'ERROR'})[s]||s.toUpperCase();
+}
+
+function fmtBytes(b){
+  return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB';
+}
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+function optOn(id){ return $(id).classList.contains('on'); }
+
+// ─── file handling ────────────────────────────────────────────────────────────
+// The ONLY reliable cross-browser approach: read the ArrayBuffer inside the
+// event callback using FileReader. We store it immediately so no permission
+// errors occur later when the button is clicked.
+
+function setupDropZone(){
+  const dz=$('dropZone'), fi=$('fileInput');
+
+  dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('over'); });
+  dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+  dz.addEventListener('drop', e=>{
+    e.preventDefault(); dz.classList.remove('over');
+    const f=e.dataTransfer.files[0];
+    if(f) readFileImmediately(f);
+  });
+
+  // change event fires in the same user-gesture tick — safe to read here
+  fi.addEventListener('change', e=>{
+    const f=e.target.files[0];
+    if(f) readFileImmediately(f);
+    // reset so same file can be re-selected
+    fi.value='';
+  });
+}
+
+function readFileImmediately(file){
+  // Reset
+  fileBuffer=null; fileNameStr=file.name;
+  $('fileCard').classList.remove('show');
+  $('runBtn').disabled=true;
+  $('results').classList.remove('show');
+  $('sheetPills').innerHTML='';
+  excelWb=null;
+  $('terminal').innerHTML='';
+  t0=null; setStatus('idle'); setProgress(0);
+
+  log('File selected: '+file.name,'step');
+  log(fmtBytes(file.size)+' · reading into memory…','dim');
+
+  const reader=new FileReader();
+
+  reader.onload=function(e){
+    fileBuffer=e.target.result;
+    $('fcName').textContent=file.name;
+    $('fcMeta').textContent=fmtBytes(fileBuffer.byteLength)+' · ready';
+    $('fileCard').classList.add('show');
+    $('runBtn').disabled=false;
+    log('Loaded into memory: '+fmtBytes(fileBuffer.byteLength),'ok');
+    log('Click PROCESS FILE to begin','dim');
+  };
+
+  reader.onerror=function(){
+    log('FileReader error: '+reader.error,'err');
+    // Fallback: try fetch() with object URL (works in some edge cases)
+    tryFetchFallback(file);
+  };
+
+  // readAsArrayBuffer inside the event handler — this is the key fix
+  reader.readAsArrayBuffer(file);
+}
+
+function tryFetchFallback(file){
+  log('Trying object-URL fallback…','warn');
+  const url=URL.createObjectURL(file);
+  fetch(url)
+    .then(r=>r.arrayBuffer())
+    .then(buf=>{
+      URL.revokeObjectURL(url);
+      fileBuffer=buf;
+      $('fcName').textContent=file.name;
+      $('fcMeta').textContent=fmtBytes(buf.byteLength)+' · ready (fallback)';
+      $('fileCard').classList.add('show');
+      $('runBtn').disabled=false;
+      log('Fallback succeeded: '+fmtBytes(buf.byteLength),'ok');
+    })
+    .catch(err=>{
+      URL.revokeObjectURL(url);
+      log('Fallback also failed: '+err.message,'err');
+      log('Try hosting this file on a web server (e.g. VS Code Live Server, Python http.server)','warn');
+    });
+}
+
+function clearFile(){
+  fileBuffer=null; fileNameStr='';
+  $('fileCard').classList.remove('show');
+  $('runBtn').disabled=true;
+  $('results').classList.remove('show');
+  $('sBlocks').textContent='—';
+  $('sSteps').textContent='—';
+  $('sActions').textContent='—';
+}
+
+// ─── FHX parser ──────────────────────────────────────────────────────────────
+function decodeFhx(buf){
+  const b=new Uint8Array(buf);
+  if(b[0]===0xFF&&b[1]===0xFE) return new TextDecoder('utf-16le').decode(buf).replace(/^\uFEFF/,'');
+  // also handle UTF-16 BE
+  if(b[0]===0xFE&&b[1]===0xFF) return new TextDecoder('utf-16be').decode(buf).replace(/^\uFEFF/,'');
+  return new TextDecoder('utf-8').decode(buf);
+}
+
+function extractBlock(text, start){
+  let depth=0, i=start;
+  while(i<text.length){
+    if(text[i]==='{') depth++;
+    else if(text[i]==='}'){if(--depth===0) return text.slice(start,i+1);}
+    i++;
+  }
+  return '';
+}
+
+function parseActions(sc){
+  const acts=[], re=/ACTION NAME="([^"]+)"\s*\{/g; let m;
+  while((m=re.exec(sc))!==null){
+    const b=extractBlock(sc, m.index+m[0].length-1);
+    const g=p=>{const r=new RegExp(p).exec(b);return r?r[1]:''};
+    const expr=(()=>{const r=/EXPRESSION="([\s\S]*?)"(?=\s+(?:DELAY|CONFIRM)|\s*\})/.exec(b);return r?r[1].trim():''})();
+    acts.push({
+      action:m[1], description:g('DESCRIPTION="([^"]+)"'),
+      type:g('ACTION_TYPE=(\\S+)'), qualifier:g('QUALIFIER=(\\S+)'),
+      expression:expr, delay_time:g('DELAY_TIME=(\\S+)'),
+      delay_expression:g('DELAY_EXPRESSION="([^"]+)"'),
+      confirm_expression:g('CONFIRM_EXPRESSION="([^"]+)"'),
+      confirm_timeout:g('CONFIRM_TIME_OUT=(\\S+)'),
+    });
+  }
+  return acts;
+}
+
+function parseFhx(text){
+  const blocks={};
+  const fbRe=/FUNCTION_BLOCK_DEFINITION NAME="([^"]+)"[^\{]*\{/g; let m;
+  while((m=fbRe.exec(text))!==null){
+    const name=m[1], block=extractBlock(text, m.index+m[0].length-1);
+    const desc=/DESCRIPTION="([^"]+)"/.exec(block);
+    const sfcM=/SFC_ALGORITHM\s*\{/.exec(block);
+    const sfc=sfcM?extractBlock(block, sfcM.index+sfcM[0].length-1):'';
+    const steps={}, trans={};
+
+    const stRe=/STEP NAME="([^"]+)"\s*\{/g; let sm;
+    while((sm=stRe.exec(sfc))!==null){
+      const sb=extractBlock(sfc, sm.index+sm[0].length-1);
+      const rc=/RECTANGLE\s*=\s*\{\s*X=(\d+)\s*Y=(\d+)/.exec(sb);
+      steps[sm[1]]={x:rc?+rc[1]:0, y:rc?+rc[2]:0, actions:parseActions(sb)};
+    }
+
+    const trRe=/TRANSITION NAME="([^"]+)"\s*\{/g; let tm;
+    while((tm=trRe.exec(sfc))!==null){
+      const tb=extractBlock(sfc, tm.index+tm[0].length-1);
+      const pos=/POSITION\s*=\s*\{\s*X=(\d+)\s*Y=(\d+)/.exec(tb);
+      const td=/DESCRIPTION="([^"]+)"/.exec(tb);
+      const te=/EXPRESSION="([^"]*)"/.exec(tb);
+      const tt=/TERMINATION=(\w+)/.exec(tb);
+      trans[tm[1]]={
+        x:pos?+pos[1]:0, y:pos?+pos[2]:0,
+        description:td?td[1].trim():'',
+        expression:te?te[1].trim():'',
+        termination:tt?tt[1]:'F'
+      };
+    }
+
+    // map transitions → preceding step via XY
+    const s2t={};
+    Object.keys(steps).forEach(s=>s2t[s]=[]);
+    Object.entries(trans).forEach(([tn,tp])=>{
+      let c=Object.entries(steps)
+        .filter(([,v])=>v.y<tp.y&&Math.abs(v.x-tp.x)<150)
+        .map(([sn,v])=>[tp.y-v.y,sn]);
+      if(!c.length) c=Object.entries(steps)
+        .filter(([,v])=>v.y<tp.y)
+        .map(([sn,v])=>[tp.y-v.y,sn]);
+      if(c.length){c.sort((a,b)=>a[0]-b[0]);s2t[c[0][1]].push(tn);}
+    });
+
+    blocks[name]={
+      description:desc?desc[1]:'',
+      ordered_steps:Object.entries(steps).sort((a,b)=>a[1].y-b[1].y),
+      transitions:trans, step_to_trans:s2t
+    };
+  }
+  return blocks;
+}
+
+// ─── label map ───────────────────────────────────────────────────────────────
+const LABEL={
+  'CNT_CIP_INIT_ABT':'ABORT_STOP','PROMPT_LOOP':'PROMPT_LOOP',
+  '__6301D2D9_179FAC11__':'HOLD','__6234329E_13C1E835__':'RESTART',
+  '__63699255_143E0A8C__':'RUNNING','__6261087C_00C321A4__':'CONDITION',
+};
+// For unknown FBs use a sanitised label
+function getLabel(fbName){
+  return LABEL[fbName] || fbName.replace(/[^A-Za-z0-9_\-]/g,'_').slice(0,31);
+}
+function pillClass(lbl){
+  if(lbl.includes('RUN')) return 'spill-RUN';
+  if(lbl.includes('ABORT')||lbl.includes('STOP')) return 'spill-ABORT';
+  if(lbl.includes('HOLD')) return 'spill-HOLD';
+  if(lbl.includes('RESTART')) return 'spill-RESTART';
+  return 'spill-OTHER';
+}
+
+// ─── Excel builder ───────────────────────────────────────────────────────────
+function buildExcel(blocks){
+  const wb=XLSX.utils.book_new();
+  const inclTrans=optOn('optTransitions');
+  const inclSumm =optOn('optSummary');
+  const inclExpr =optOn('optExpressions');
+
+  if(inclSumm){
+    const rows=[['Logic Block','FB Definition Name','Description','Steps','Total Actions','Transitions','Sheet Tab']];
+    Object.entries(blocks).forEach(([fb,d])=>{
+      const lbl=getLabel(fb);
+      const acts=d.ordered_steps.reduce((s,[,v])=>s+v.actions.length,0);
+      rows.push([lbl,fb,d.description,d.ordered_steps.length,acts,Object.keys(d.transitions).length,lbl.slice(0,31)]);
+    });
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[16,30,46,7,12,13,18].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb,ws,'SUMMARY');
+  }
+
+  Object.entries(blocks).forEach(([fb,d])=>{
+    const lbl=getLabel(fb).slice(0,31);
+    const rows=[];
+    rows.push([`Phase Logic: ${lbl}   |   ${d.description}`,'','','','','','','','','']);
+    rows.push(['Row Type','Step / Transition','Description','Action','Qualifier',
+               inclExpr?'Expression':'(expressions hidden)',
+               'Delay','Delay Expression','Confirm Expression','Confirm Timeout']);
+
+    d.ordered_steps.forEach(([sn,sd],si)=>{
+      rows.push([`STEP ${si+1}:  ${sn}   (${sd.actions.length} action${sd.actions.length!==1?'s':''})`,
+                 '','','','','','','','','']);
+      sd.actions.forEach(a=>{
+        rows.push(['ACTION',sn,a.description,a.action,a.qualifier,
+          inclExpr?a.expression:'—',
+          a.delay_time||'',a.delay_expression||'',
+          a.confirm_expression||'',a.confirm_timeout||'']);
+      });
+      if(inclTrans){
+        const tl=d.step_to_trans[sn]||[];
+        if(tl.length){
+          rows.push([`↓ TRANSITION${tl.length>1?'S':''} FROM: ${sn}  (${tl.length})`,'','','','','','','','','']);
+          tl.forEach(tn=>{
+            const tr=d.transitions[tn];
+            rows.push(['TRANSITION',tn,tr.description,
+              tr.termination==='T'?'⏹ END':'→ NEXT','',
+              inclExpr?tr.expression:'—','','','','']);
+          });
+        }
+      }
+      rows.push(['','','','','','','','','','']); // spacer
+    });
+
+    const ws=XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols']=[13,22,30,10,10,52,10,34,30,14].map(w=>({wch:w}));
+    XLSX.utils.book_append_sheet(wb,ws,lbl);
+  });
+  return wb;
+}
+
+// ─── main conversion flow ─────────────────────────────────────────────────────
+async function runConversion(){
+  if(!fileBuffer){ log('No file loaded','err'); return; }
+
+  t0=Date.now();
+  $('terminal').innerHTML='';
+  $('results').classList.remove('show');
+  $('sheetPills').innerHTML='';
+  excelWb=null;
+
+  const btn=$('runBtn');
+  btn.disabled=true; btn.classList.add('running');
+  btn.textContent='◼  PROCESSING…';
+  setStatus('running'); setProgress(0);
+
+  try{
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
+    log('FHX → EXCEL  ·  '+new Date().toLocaleTimeString(),'head');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
+    await sleep(60);
+
+    // step 1 — decode
+    log('Decoding file encoding…','step'); setProgress(8); await sleep(80);
+    const text=decodeFhx(fileBuffer);
+    const isU16=new Uint8Array(fileBuffer)[0]===0xFF;
+    log('Encoding: '+(isU16?'UTF-16 LE (BOM detected)':'UTF-8 / other'),'ok');
+    log(text.length.toLocaleString()+' characters decoded','dim');
+    await sleep(60);
+
+    // step 2 — schema scan
+    log('Scanning file header…','step'); setProgress(16); await sleep(70);
+    const vM=/VERSION_STR="([^"]+)"/.exec(text);
+    const xM=/\/\* "([^"]+)" \*\//.exec(text);
+    if(vM) log('DeltaV version: '+vM[1],'data');
+    if(xM) log('Export label: '+xM[1],'data');
+    await sleep(50);
+
+    // step 3 — discover FBs
+    log('Discovering FUNCTION_BLOCK_DEFINITION blocks…','step'); setProgress(24); await sleep(80);
+    const fbNames=[...text.matchAll(/FUNCTION_BLOCK_DEFINITION NAME="([^"]+)"/g)].map(m=>m[1]);
+    log(fbNames.length+' block'+(fbNames.length!==1?'s':'')+' found','ok');
+    fbNames.forEach(n=>log('  · '+n+(LABEL[n]?'  →  ['+LABEL[n]+']':''),'dim'));
+    await sleep(80);
+
+    // step 4 — parse
+    log('Parsing SFC steps, actions and transitions…','step'); setProgress(36); await sleep(100);
+    const blocks=parseFhx(text);
+    let totSteps=0, totActs=0, totTrans=0;
+
+    for(const [fb,d] of Object.entries(blocks)){
+      const lbl=getLabel(fb);
+      const acts=d.ordered_steps.reduce((s,[,v])=>s+v.actions.length,0);
+      totSteps+=d.ordered_steps.length; totActs+=acts;
+      totTrans+=Object.keys(d.transitions).length;
+      if(d.ordered_steps.length){
+        log(`[${lbl}]  ${d.ordered_steps.length} steps · ${acts} actions · ${Object.keys(d.transitions).length} transitions`,'ok');
+        await sleep(40);
+        for(const [sn,sd] of d.ordered_steps){
+          log('    STEP '+sn+'  ('+sd.actions.length+' actions)','dim');
+          await sleep(12);
+        }
+      } else {
+        log('['+lbl+']  (no SFC steps)','dim');
+        await sleep(25);
+      }
+      setProgress(36+Math.round(Object.keys(blocks).indexOf(fb)/Object.keys(blocks).length*30));
+    }
+
+    $('sBlocks').textContent=Object.keys(blocks).length;
+    $('sSteps').textContent=totSteps;
+    $('sActions').textContent=totActs;
+    log(totSteps+' steps · '+totActs+' actions · '+totTrans+' transitions total','ok');
+    await sleep(80);
+
+    // step 5 — map transitions
+    log('Mapping transitions → parent steps via XY coordinates…','step'); setProgress(68); await sleep(100);
+    let multi=0;
+    for(const [fb,d] of Object.entries(blocks)){
+      for(const [sn,tl] of Object.entries(d.step_to_trans)){
+        if(tl.length>1){
+          multi++;
+          log('  ⚡ '+getLabel(fb)+'/'+sn+'  →  '+tl.join(', ')+'  ('+tl.length+' branches)','warn');
+          await sleep(25);
+        }
+      }
+    }
+    log(multi+' divergent branch'+(multi!==1?'es':'')+' detected',multi?'warn':'ok');
+    await sleep(80);
+
+    // step 6 — build workbook
+    log('Building Excel workbook…','step'); setProgress(76); await sleep(80);
+    const pills=$('sheetPills');
+    if(optOn('optSummary')){
+      log('  · SUMMARY sheet','dim'); await sleep(30);
+      const p=document.createElement('div');
+      p.className='spill spill-OTHER';
+      p.innerHTML='<div class="sd"></div>SUMMARY'; pills.appendChild(p);
+    }
+    for(const [fb,d] of Object.entries(blocks)){
+      const lbl=getLabel(fb);
+      const acts=d.ordered_steps.reduce((s,[,v])=>s+v.actions.length,0);
+      if(d.ordered_steps.length){
+        log('  · sheet: '+lbl+'  ('+d.ordered_steps.length+' steps, '+acts+' actions)','dim');
+        await sleep(45);
+        const p=document.createElement('div');
+        p.className='spill '+pillClass(lbl);
+        p.innerHTML='<div class="sd"></div>'+lbl; pills.appendChild(p);
+      }
+    }
+
+    excelWb=buildExcel(blocks);
+    setProgress(95); await sleep(80);
+    log(excelWb.SheetNames.length+' sheets assembled','ok'); await sleep(60);
+    setProgress(100);
+
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
+    log('DONE  ·  elapsed '+ts(),'ok');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
+    setStatus('done');
+    $('results').classList.add('show');
+
+  } catch(e){
+    log('ERROR: '+e.message,'err');
+    if(e.stack) log(e.stack.split('\n')[1]||'','dim');
+    setStatus('error'); setProgress(0);
+  } finally {
+    btn.disabled=false; btn.classList.remove('running');
+    btn.innerHTML='▶ &nbsp;PROCESS FILE';
+  }
+}
+
+// ─── download ─────────────────────────────────────────────────────────────────
+function downloadExcel(){
+  if(!excelWb) return;
+  const base=fileNameStr.replace(/\.fhx$/i,'');
+  XLSX.writeFile(excelWb, base+'_Logic.xlsx');
+  log('Downloaded: '+base+'_Logic.xlsx','ok');
+}
+
+// ─── init ─────────────────────────────────────────────────────────────────────
+setupDropZone();
+</script>
+</body>
+</html>
