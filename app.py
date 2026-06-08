@@ -1,6 +1,6 @@
 from flask import Flask, request, send_file, jsonify
 from flask_cors import CORS
-import io, re, openpyxl
+import io, re, os, openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
@@ -252,5 +252,5 @@ def convert():
 
 if __name__ == '__main__':
     import os
-port=int(os.environ.get('PORT',5000))
-app.run(host='0.0.0.0', port=port, debug=False)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
