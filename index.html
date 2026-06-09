@@ -221,9 +221,7 @@ header h1 span{color:var(--accent)}
          DeltaV Export · <code>UTF-16 LE</code> supported</p>
     </div>
 
-    <!-- Hidden second input — triggered by the Process button for guaranteed file access -->
-    <input type="file" id="fileInputProcess" accept=".fhx,.FHX"
-           style="display:none" onchange="handleProcessInput(this)"/>
+
 
     <div class="file-card" id="fileCard">
       <div><div class="fc-name" id="fcName">—</div><div class="fc-meta" id="fcMeta">—</div></div>
@@ -288,7 +286,7 @@ header h1 span{color:var(--accent)}
 
 <script>
 const $=id=>document.getElementById(id);
-let selectedFile=null, fileBuffer=null, resultBlob=null, resultName='output.xlsx', t0=null;
+let selectedFile=null, resultBlob=null, resultName='output.xlsx', t0=null;
 let fhxType='phase', emSub='em_cd';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const optOn=id=>$(id).classList.contains('on');
@@ -343,9 +341,9 @@ function updateTypeUI() {
 }
 
 // ── File handling ─────────────────────────────────────────────────────────────
-// Strategy: the PROCESS FILE button triggers a fresh <input type="file"> pick.
-// This guarantees the file is read inside a live user-gesture — no permission errors ever.
-// The drop zone / browse input are for preview/UX only.
+// Key insight: FormData.append(file) + fetch() works natively with a File object.
+// No FileReader, no arrayBuffer(), no stored buffer — the browser handles it internally.
+// FileReader is only used optionally for the live scan display, and we skip it if it fails.
 
 const dz=$('dropZone'), fi=$('fileInput');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
@@ -356,14 +354,13 @@ dz.addEventListener('drop',e=>{
 });
 fi.addEventListener('change',e=>{
   if(e.target.files[0]) previewFile(e.target.files[0]);
-  fi.value='';
+  // do NOT reset fi.value here — we need the File object to stay accessible
 });
 
-// Preview — just shows the filename and enables the button. No file read yet.
 function previewFile(f){
-  selectedFile=f; fileBuffer=null;
+  selectedFile=f;
   $('fcName').textContent=f.name;
-  $('fcMeta').textContent=fmt(f.size)+' · click PROCESS FILE to convert';
+  $('fcMeta').textContent=fmt(f.size)+' · ready';
   $('fileCard').classList.add('show');
   $('runBtn').disabled=false;
   $('results').classList.remove('show');
@@ -371,39 +368,19 @@ function previewFile(f){
   $('terminal').innerHTML='';
   t0=null; setStatus('idle'); setProgress(0);
   log('File selected: '+f.name,'ok');
-  log('Click PROCESS FILE to begin','dim');
+  log(fmt(f.size)+' · click PROCESS FILE to begin','dim');
 }
 
 function clearFile(){
-  selectedFile=null; fileBuffer=null; resultBlob=null;
+  selectedFile=null; resultBlob=null;
   $('fileCard').classList.remove('show');
   $('runBtn').disabled=true;
   $('results').classList.remove('show');
+  fi.value='';
   ['sA','sB','sC'].forEach(id=>$(id).textContent='—');
 }
 
-// handleProcessInput — called when the hidden file input (triggered by Process button) fires
-function handleProcessInput(input){
-  const f=input.files[0];
-  if(!f){ log('No file selected','err'); return; }
-  selectedFile=f;
-  // Read immediately — we are still inside the user-gesture callback
-  const reader=new FileReader();
-  reader.onload=e=>{
-    fileBuffer=e.target.result;
-    input.value='';
-    doConvert();   // proceed now that buffer is ready
-  };
-  reader.onerror=()=>{
-    input.value='';
-    log('File read error: '+reader.error,'err');
-    log('Please try again or use a different browser','warn');
-    resetBtn();
-  };
-  reader.readAsArrayBuffer(f);
-}
-
-// ── Logging helpers ───────────────────────────────────────────────────────────
+// ── Logging ───────────────────────────────────────────────────────────────────
 function ts(){
   if(!t0)return'--:--:---';
   const d=Date.now()-t0;
@@ -415,7 +392,7 @@ function log(msg,type='dim'){
   const t=$('terminal'),row=document.createElement('div');
   row.className='line '+type;
   row.innerHTML=`<span class="lts">${ts()}</span><span class="lmsg">${msg}</span>`;
-  t.appendChild(row);t.scrollTop=t.scrollHeight;
+  t.appendChild(row); t.scrollTop=t.scrollHeight;
 }
 function setProgress(p){$('pFill').style.width=p+'%';}
 function setStatus(s){
@@ -429,74 +406,67 @@ function resetBtn(){
   btn.disabled=false; btn.classList.remove('running');
   btn.innerHTML='▶ &nbsp;PROCESS FILE';
 }
+function optOn(id){return $(id).classList.contains('on');}
 
-// ── Quick browser-side scan for live log display ───────────────────────────────
-function decodeFhx(buf){
+// ── Quick scan (best-effort, for live log display only) ───────────────────────
+function decodeBuf(buf){
   const b=new Uint8Array(buf);
   if(b[0]===0xFF&&b[1]===0xFE)return new TextDecoder('utf-16le').decode(buf).replace(/^\uFEFF/,'');
   return new TextDecoder('utf-8').decode(buf);
 }
-function quickScan(buf, type){
-  const text=decodeFhx(buf);
+function quickScan(text, type){
   if(type==='phase'){
     const fbs=[...text.matchAll(/FUNCTION_BLOCK_DEFINITION\s+NAME="([^"]+)"/g)].map(m=>m[1]);
-    const steps=[...text.matchAll(/STEP\s+NAME=/g)].length;
-    const actions=[...text.matchAll(/ACTION\s+NAME=/g)].length;
-    return{labels:fbs, a:fbs.length, b:steps, c:actions, aL:'Blocks', bL:'Steps', cL:'Actions'};
+    return{labels:fbs, a:fbs.length,
+           b:[...text.matchAll(/STEP\s+NAME=/g)].length,
+           c:[...text.matchAll(/ACTION\s+NAME=/g)].length,
+           aL:'Blocks', bL:'Steps', cL:'Actions'};
   } else if(type==='em_cd'){
     const cmds=[...text.matchAll(/T_IN_\d+[^}]+A_COMMAND[^:]+:([^']+)'/g)].map(m=>m[1].trim());
-    const steps=[...text.matchAll(/STEP\s+NAME=/g)].length;
-    const actions=[...text.matchAll(/ACTION\s+NAME=/g)].length;
-    return{labels:cmds, a:cmds.length, b:steps, c:actions, aL:'Commands', bL:'Steps', cL:'Actions'};
+    return{labels:cmds, a:cmds.length,
+           b:[...text.matchAll(/STEP\s+NAME=/g)].length,
+           c:[...text.matchAll(/ACTION\s+NAME=/g)].length,
+           aL:'Commands', bL:'Steps', cL:'Actions'};
   } else if(type==='em_sd'){
     const states=[...text.matchAll(/T_IN_\d+[^}]+A_COMMAND[^:]+:([^']+)'/g)].map(m=>m[1].trim());
-    const devices=[...text.matchAll(/ATTRIBUTE\s+NAME="([^"]+)"[^\{]*\{[^\}]*GROUP="I\/O"/g)].map(m=>m[1]);
-    return{labels:states, a:1, b:states.length, c:[...new Set(devices)].length,
+    const devs=[...new Set([...text.matchAll(/ATTRIBUTE\s+NAME="([^"]+)"[^\{]*\{[^\}]*GROUP="I\/O"/g)].map(m=>m[1]))];
+    return{labels:states, a:1, b:states.length, c:devs.length,
            aL:'EM(s)', bL:'States', cL:'Devices'};
   }
   return{labels:[], a:0, b:0, c:0, aL:'', bL:'', cL:''};
 }
+function pillClass(type){return type==='phase'?'spill-phase':type==='em_cd'?'spill-cmd':'spill-state';}
 
-function pillClass(type){ return type==='phase'?'spill-phase':type==='em_cd'?'spill-cmd':'spill-state'; }
+// ── Main conversion ────────────────────────────────────────────────────────────
+async function runConversion(){
+  if(!selectedFile){ log('No file selected','err'); return; }
+  if(fhxType==='em_fb'){ log('Function Block EM coming soon','warn'); return; }
 
-// ── Process button click — triggers fresh file pick ────────────────────────────
-function runConversion(){
-  if(fhxType==='em_fb'){ log('Function Block EM parser coming soon.','warn'); return; }
-
-  const btn=$('runBtn');
-  btn.disabled=true; btn.classList.add('running');
-  btn.innerHTML='◼ &nbsp;PROCESSING…';
   t0=Date.now();
   $('terminal').innerHTML='';
   $('results').classList.remove('show');
   $('sheetPills').innerHTML='';
   resultBlob=null;
-  setStatus('running'); setProgress(0);
+  const btn=$('runBtn');
+  btn.disabled=true; btn.classList.add('running');
+  btn.innerHTML='◼ &nbsp;PROCESSING…';
+  setStatus('running'); setProgress(5);
 
-  // Trigger a fresh file pick — this is inside a click handler (user gesture),
-  // so the browser grants full file read access. No permission errors.
-  const fp=$('fileInputProcess');
-  // Pre-populate the name label so the picker opens to the right file type
-  fp.click();
-}
+  const typeLabels={phase:'PHASE',em_cd:'COMMAND DRIVEN EM',em_sd:'STATE DRIVEN EM'};
+  log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
+  log('FHX → EXCEL  ·  '+typeLabels[fhxType]+'  ·  '+new Date().toLocaleTimeString(),'head');
+  log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
+  log('File: '+selectedFile.name+'  ('+fmt(selectedFile.size)+')','ok');
 
-// ── Actual conversion — called after FileReader completes ──────────────────────
-async function doConvert(){
+  // Best-effort scan for live display — skip gracefully if browser blocks it
   try{
-    const typeLabels={phase:'PHASE',em_cd:'COMMAND DRIVEN EM',em_sd:'STATE DRIVEN EM'};
-    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
-    log('FHX → EXCEL  ·  '+typeLabels[fhxType]+'  ·  '+new Date().toLocaleTimeString(),'head');
-    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
-
-    const isU16=new Uint8Array(fileBuffer)[0]===0xFF;
-    log('File: '+selectedFile.name,'ok');
-    log('Encoding: '+(isU16?'UTF-16 LE':'UTF-8')+'  ·  '+fmt(fileBuffer.byteLength),'dim');
-    setProgress(12);
-
-    const scan=quickScan(fileBuffer, fhxType);
+    const buf = await selectedFile.arrayBuffer();
+    const text = decodeBuf(buf);
+    const isU16 = new Uint8Array(buf)[0]===0xFF;
+    log('Encoding: '+(isU16?'UTF-16 LE':'UTF-8'),'dim');
+    const scan = quickScan(text, fhxType);
     $('sA').textContent=scan.a; $('sB').textContent=scan.b; $('sC').textContent=scan.c;
     $('sAL').textContent=scan.aL; $('sBL').textContent=scan.bL; $('sCL').textContent=scan.cL;
-
     if(fhxType==='phase'){
       log(scan.a+' logic blocks · '+scan.b+' steps · '+scan.c+' actions','ok');
       scan.labels.forEach(n=>log('  · '+n,'dim'));
@@ -508,41 +478,44 @@ async function doConvert(){
       scan.labels.slice(0,8).forEach(n=>log('  · '+n,'dim'));
       if(scan.labels.length>8) log('  · … and '+(scan.labels.length-8)+' more','dim');
     }
-    setProgress(30);
-
-    // Sheet pills preview
+    // Pills
     const pills=$('sheetPills');
     if(optOn('optSummary')){
       const p=document.createElement('div'); p.className='spill spill-summ';
       p.innerHTML='<div class="sd"></div>SUMMARY'; pills.appendChild(p);
     }
     scan.labels.forEach(n=>{
-      const p=document.createElement('div');
-      p.className='spill '+pillClass(fhxType);
+      const p=document.createElement('div'); p.className='spill '+pillClass(fhxType);
       p.innerHTML='<div class="sd"></div>'+n.replace(/[\/\\\?\*\[\]\:\s]/g,'_').slice(0,20);
       pills.appendChild(p);
     });
+  } catch(scanErr){
+    log('(Scan skipped — proceeding to upload)','dim');
+  }
 
-    log('Sending to Python backend…','step');
-    setProgress(45);
+  setProgress(40);
+  log('Uploading to server…','step');
 
-    const blob=new Blob([fileBuffer],{type:'application/octet-stream'});
-    const formData=new FormData();
-    formData.append('file', blob, selectedFile.name);
-    formData.append('fhx_type', fhxType);
-    formData.append('transitions', optOn('optTransitions')?'true':'false');
-    formData.append('summary',     optOn('optSummary')?'true':'false');
-    formData.append('expressions', optOn('optExpressions')?'true':'false');
+  try{
+    // Pass the File object directly to FormData — no FileReader involved.
+    // fetch() streams it straight to the server; this always works.
+    const fd = new FormData();
+    fd.append('file', selectedFile, selectedFile.name);
+    fd.append('fhx_type',    fhxType);
+    fd.append('transitions', optOn('optTransitions')?'true':'false');
+    fd.append('summary',     optOn('optSummary')?'true':'false');
+    fd.append('expressions', optOn('optExpressions')?'true':'false');
 
-    const resp=await fetch('/convert',{method:'POST',body:formData});
+    const resp = await fetch('/convert', {method:'POST', body:fd});
     if(!resp.ok){
-      const err=await resp.json().catch(()=>({error:'Server error '+resp.status}));
+      const err = await resp.json().catch(()=>({error:'Server error '+resp.status}));
       throw new Error(err.error||'Server returned '+resp.status);
     }
+
     setProgress(90);
     log('Receiving Excel workbook…','dim');
-    resultBlob=await resp.blob();
-    resultName=selectedFile.name.replace(/\.fhx$/i,'')+'_Logic.xlsx';
+    resultBlob = await resp.blob();
+    resultName = selectedFile.name.replace(/\.fhx$/i,'')+'_Logic.xlsx';
     setProgress(100);
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
     log('DONE  ·  elapsed '+ts(),'ok');
@@ -550,10 +523,10 @@ async function doConvert(){
     setStatus('done');
     $('results').classList.add('show');
 
-  }catch(e){
+  } catch(e){
     log('ERROR: '+e.message,'err');
     setStatus('error'); setProgress(0);
-  }finally{
+  } finally {
     resetBtn();
   }
 }
