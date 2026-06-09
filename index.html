@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>FHX → Excel Converter · DeltaV Phase Export</title>
+<title>FHX → Excel Converter · DeltaV</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0e0f11;--surface:#16181c;--border:#2a2d34;--border2:#3a3e47;
+  --bg:#0e0f11;--surface:#16181c;--surface2:#1e2126;
+  --border:#2a2d34;--border2:#3a3e47;
   --accent:#00d4ff;--green:#00e676;--yellow:#ffd740;--red:#ff5252;--orange:#ff6b35;
   --text:#e8eaed;--muted:#7a8494;--dim:#3e4452;
   --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
@@ -25,24 +26,53 @@ header h1 span{color:var(--accent)}
 .ver{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--muted);
   border:1px solid var(--border2);padding:2px 8px}
 
-.main{flex:1;display:grid;grid-template-columns:400px 1fr;min-height:0}
-@media(max-width:780px){.main{grid-template-columns:1fr}}
+.main{flex:1;display:grid;grid-template-columns:420px 1fr;min-height:0}
+@media(max-width:820px){.main{grid-template-columns:1fr}}
 
 .left{border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
 .panel-label{font-family:var(--mono);font-size:9px;letter-spacing:.12em;color:var(--muted);
-  text-transform:uppercase;padding:12px 18px 9px;border-bottom:1px solid var(--border);background:var(--surface)}
+  text-transform:uppercase;padding:12px 18px 9px;border-bottom:1px solid var(--border);
+  background:var(--surface);flex-shrink:0}
 
-.drop-zone{margin:16px;border:1.5px dashed var(--border2);padding:28px 16px;text-align:center;
-  cursor:pointer;transition:all .2s;background:linear-gradient(135deg,rgba(0,212,255,.04) 0%,transparent 60%);position:relative}
-.drop-zone:hover,.drop-zone.over{border-color:var(--accent);background:rgba(0,212,255,.08)}
+/* ── file type selector ── */
+.type-section{padding:14px 16px;border-bottom:1px solid var(--border)}
+.type-section h3{font-family:var(--mono);font-size:9px;color:var(--muted);
+  letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
+
+.type-row{display:flex;gap:8px;margin-bottom:8px}
+.type-btn{flex:1;padding:8px 6px;font-family:var(--mono);font-size:11px;
+  border:1px solid var(--border2);background:var(--surface2);color:var(--muted);
+  cursor:pointer;transition:all .15s;text-align:center;letter-spacing:.04em}
+.type-btn:hover{border-color:var(--border2);color:var(--text)}
+.type-btn.active{border-color:var(--accent);background:rgba(0,212,255,.08);color:var(--accent)}
+.type-btn.active-em{border-color:#ff9800;background:rgba(255,152,0,.08);color:#ff9800}
+.type-btn.active-sd{border-color:#ce93d8;background:rgba(206,147,216,.08);color:#ce93d8}
+
+.em-sub{display:none;gap:6px;margin-top:2px}
+.em-sub.show{display:flex}
+.sub-btn{flex:1;padding:6px 4px;font-family:var(--mono);font-size:10px;
+  border:1px solid var(--border);background:var(--surface);color:var(--muted);
+  cursor:pointer;transition:all .15s;text-align:center}
+.sub-btn:hover{color:var(--text)}
+.sub-btn.active{border-color:#ff9800;background:rgba(255,152,0,.06);color:#ff9800}
+.sub-btn.active-sd{border-color:#ce93d8;background:rgba(206,147,216,.06);color:#ce93d8}
+
+.type-desc{font-size:11px;color:var(--muted);margin-top:8px;
+  padding:8px 10px;border-left:2px solid var(--border2);line-height:1.6}
+
+/* ── drop zone ── */
+.drop-zone{margin:16px;border:1.5px dashed var(--border2);padding:24px 16px;text-align:center;
+  cursor:pointer;transition:all .2s;
+  background:linear-gradient(135deg,rgba(0,212,255,.03) 0%,transparent 60%);position:relative}
+.drop-zone:hover,.drop-zone.over{border-color:var(--accent);background:rgba(0,212,255,.07)}
 .drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.drop-zone .dz-icon{font-size:32px;margin-bottom:10px;display:block}
+.drop-zone .dz-icon{font-size:28px;margin-bottom:8px;display:block}
 .drop-zone p{font-size:13px;color:var(--muted);line-height:1.7}
 .drop-zone strong{color:var(--text)}
 .drop-zone code{font-family:var(--mono);font-size:11px;color:var(--accent)}
 
 .file-card{margin:0 16px;border:1px solid var(--border2);border-left:3px solid var(--green);
-  padding:11px 14px;display:none;gap:10px;align-items:center;background:rgba(0,230,118,.05)}
+  padding:10px 14px;display:none;gap:10px;align-items:center;background:rgba(0,230,118,.04)}
 .file-card.show{display:flex}
 .fc-name{font-family:var(--mono);font-size:12px;font-weight:600;color:var(--text);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
@@ -50,10 +80,14 @@ header h1 span{color:var(--accent)}
 .file-card button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 2px}
 .file-card button:hover{color:var(--red)}
 
-.opts{padding:14px 16px;border-top:1px solid var(--border)}
-.opts h3{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
-.opt-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)}
+/* ── options ── */
+.opts{padding:12px 16px;border-top:1px solid var(--border)}
+.opts h3{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.1em;
+  text-transform:uppercase;margin-bottom:10px}
+.opt-row{display:flex;align-items:center;justify-content:space-between;
+  padding:6px 0;border-bottom:1px solid var(--border)}
 .opt-row:last-child{border-bottom:none}
+.opt-row.hidden{display:none}
 .opt-label{font-size:13px;color:var(--text)}
 .opt-sub{font-size:11px;color:var(--muted);margin-top:1px}
 .toggle{width:36px;height:19px;background:var(--dim);border-radius:10px;position:relative;
@@ -63,18 +97,20 @@ header h1 span{color:var(--accent)}
   border-radius:50%;top:3px;left:3px;transition:transform .2s}
 .toggle.on::after{transform:translateX(17px)}
 
-.stats{margin:14px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
-.stat-box{border:1px solid var(--border);padding:9px 10px;background:var(--surface)}
-.stat-val{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--accent)}
+.stats{margin:12px 16px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.stat-box{border:1px solid var(--border);padding:8px 10px;background:var(--surface)}
+.stat-val{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent)}
 .stat-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:2px}
 
 .run-btn{margin:0 16px 16px;padding:12px;background:var(--accent);color:var(--bg);
   border:none;font-family:var(--mono);font-size:13px;font-weight:600;letter-spacing:.07em;
-  cursor:pointer;width:calc(100% - 32px);transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
+  cursor:pointer;width:calc(100% - 32px);transition:all .2s;
+  display:flex;align-items:center;justify-content:center;gap:8px}
 .run-btn:hover:not(:disabled){background:#33dcff}
 .run-btn:disabled{background:var(--dim);color:var(--muted);cursor:not-allowed}
 .run-btn.running{background:var(--yellow);color:var(--bg)}
 
+/* ── right panel ── */
 .right{display:flex;flex-direction:column;min-height:0}
 .term-header{display:flex;align-items:center;gap:8px;padding:9px 18px;
   background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
@@ -110,7 +146,7 @@ header h1 span{color:var(--accent)}
 
 .results{border-top:1px solid var(--border);background:var(--surface);flex-shrink:0;
   max-height:0;overflow:hidden;transition:max-height .35s ease}
-.results.show{max-height:200px}
+.results.show{max-height:220px}
 .results-inner{padding:14px 18px}
 .results-title{font-family:var(--mono);font-size:10px;color:var(--muted);
   letter-spacing:.1em;text-transform:uppercase;margin-bottom:10px}
@@ -118,11 +154,10 @@ header h1 span{color:var(--accent)}
 .spill{font-family:var(--mono);font-size:11px;border:1px solid var(--border2);
   padding:4px 9px;color:var(--text);display:flex;align-items:center;gap:5px}
 .spill .sd{width:6px;height:6px;border-radius:50%}
-.spill-RUN{border-color:#2e9449}.spill-RUN .sd{background:#2e9449}
-.spill-ABORT{border-color:#cc3333}.spill-ABORT .sd{background:#cc3333}
-.spill-HOLD{border-color:#b87a00}.spill-HOLD .sd{background:#b87a00}
-.spill-RESTART{border-color:#0088bb}.spill-RESTART .sd{background:#0088bb}
-.spill-OTHER{border-color:var(--muted)}.spill-OTHER .sd{background:var(--muted)}
+.spill-phase{border-color:#2e75b6}.spill-phase .sd{background:#2e75b6}
+.spill-cmd{border-color:#ff9800}.spill-cmd .sd{background:#ff9800}
+.spill-state{border-color:#ce93d8}.spill-state .sd{background:#ce93d8}
+.spill-summ{border-color:var(--muted)}.spill-summ .sd{background:var(--muted)}
 
 .dl-btn{padding:9px 22px;background:var(--green);color:var(--bg);border:none;
   font-family:var(--mono);font-size:12px;font-weight:600;cursor:pointer;
@@ -137,25 +172,64 @@ header h1 span{color:var(--accent)}
 <body>
 <header>
   <div class="logo">FHX</div>
-  <h1>DeltaV Phase Export <span>→ Excel</span> Converter</h1>
-  <div class="ver">v3.0 · PYTHON BACKEND</div>
+  <h1>DeltaV Phase &amp; EM Export <span>→ Excel</span> Converter</h1>
+  <div class="ver">v4.0 · MULTI-TYPE</div>
 </header>
+
 <div class="main">
+  <!-- LEFT -->
   <div class="left">
-    <div class="panel-label">// input &amp; configuration</div>
+    <div class="panel-label">// file type &amp; configuration</div>
+
+    <!-- File Type Selector -->
+    <div class="type-section">
+      <h3>// 1. select export type</h3>
+      <div class="type-row">
+        <button class="type-btn active" id="btn-phase" onclick="setType('phase')">
+          📋 PHASE
+        </button>
+        <button class="type-btn" id="btn-em" onclick="setType('em')">
+          ⚙️ EQUIPMENT MODULE
+        </button>
+      </div>
+
+      <!-- EM sub-options -->
+      <div class="em-sub" id="em-sub">
+        <button class="sub-btn active" id="sub-cd" onclick="setEmSub('em_cd')">
+          ▶ Command Driven
+        </button>
+        <button class="sub-btn" id="sub-sd" onclick="setEmSub('em_sd')">
+          ◈ State Driven
+        </button>
+        <button class="sub-btn" id="sub-fb" onclick="setEmSub('em_fb')" disabled
+                title="Coming soon" style="opacity:.45;cursor:not-allowed">
+          ƒ Function Block
+        </button>
+      </div>
+
+      <div class="type-desc" id="type-desc">
+        Exports a <strong>Phase FHX</strong> — parses RUNNING, ABORT, HOLD, RESTART
+        and other SFC logic blocks into separate colour-coded sheets.
+      </div>
+    </div>
+
+    <!-- Drop Zone -->
     <div class="drop-zone" id="dropZone">
       <input type="file" id="fileInput" accept=".fhx,.FHX"/>
       <span class="dz-icon">📂</span>
       <p><strong>Drop your .fhx file here</strong><br>or click to browse<br><br>
-         DeltaV Phase Export · <code>UTF-16 LE</code> supported</p>
+         DeltaV Export · <code>UTF-16 LE</code> supported</p>
     </div>
+
     <div class="file-card" id="fileCard">
       <div><div class="fc-name" id="fcName">—</div><div class="fc-meta" id="fcMeta">—</div></div>
       <button onclick="clearFile()" title="Remove">✕</button>
     </div>
+
+    <!-- Options -->
     <div class="opts">
-      <h3>// export options</h3>
-      <div class="opt-row">
+      <h3>// 2. export options</h3>
+      <div class="opt-row" id="opt-transitions-row">
         <div><div class="opt-label">Embed transitions under steps</div>
              <div class="opt-sub">Show each step's outgoing transitions inline</div></div>
         <button class="toggle on" id="optTransitions" onclick="this.classList.toggle('on')"></button>
@@ -165,19 +239,23 @@ header h1 span{color:var(--accent)}
              <div class="opt-sub">Overview tab with all logic block stats</div></div>
         <button class="toggle on" id="optSummary" onclick="this.classList.toggle('on')"></button>
       </div>
-      <div class="opt-row">
+      <div class="opt-row" id="opt-expressions-row">
         <div><div class="opt-label">Include raw expressions</div>
              <div class="opt-sub">Full DeltaV expression strings in cells</div></div>
         <button class="toggle on" id="optExpressions" onclick="this.classList.toggle('on')"></button>
       </div>
     </div>
+
     <div class="stats">
-      <div class="stat-box"><div class="stat-val" id="sBlocks">—</div><div class="stat-lbl">Logic Blocks</div></div>
-      <div class="stat-box"><div class="stat-val" id="sSteps">—</div><div class="stat-lbl">Steps</div></div>
-      <div class="stat-box"><div class="stat-val" id="sActions">—</div><div class="stat-lbl">Actions</div></div>
+      <div class="stat-box"><div class="stat-val" id="sA">—</div><div class="stat-lbl" id="sAL">Blocks</div></div>
+      <div class="stat-box"><div class="stat-val" id="sB">—</div><div class="stat-lbl" id="sBL">Steps</div></div>
+      <div class="stat-box"><div class="stat-val" id="sC">—</div><div class="stat-lbl" id="sCL">Actions</div></div>
     </div>
+
     <button class="run-btn" id="runBtn" disabled onclick="runConversion()">▶ &nbsp;PROCESS FILE</button>
   </div>
+
+  <!-- RIGHT -->
   <div class="right">
     <div class="term-header">
       <div class="win-dots">
@@ -185,19 +263,20 @@ header h1 span{color:var(--accent)}
         <div class="wdot" style="background:#febc2e"></div>
         <div class="wdot" style="background:#28c840"></div>
       </div>
-      <div class="term-title">fhx-parser — process log</div>
+      <div class="term-title" id="termTitle">fhx-parser · phase mode · process log</div>
       <div class="term-status idle" id="termStatus">IDLE</div>
     </div>
     <div class="progress-strip"><div class="progress-fill" id="pFill"></div></div>
     <div class="terminal" id="terminal">
       <div class="line dim"><span class="lts">--:--:---</span>
-        <span class="lmsg">Waiting for input file… <span class="cur"></span></span></div>
+        <span class="lmsg">Select export type, drop your .fhx file, then click PROCESS FILE <span class="cur"></span></span>
+      </div>
     </div>
     <div class="results" id="results">
       <div class="results-inner">
         <div class="results-title">// output sheets generated</div>
         <div class="sheet-pills" id="sheetPills"></div>
-        <button class="dl-btn" id="dlBtn" onclick="downloadResult()">⬇ &nbsp;Download Excel File</button>
+        <button class="dl-btn" onclick="downloadResult()">⬇ &nbsp;Download Excel File</button>
       </div>
     </div>
   </div>
@@ -206,13 +285,95 @@ header h1 span{color:var(--accent)}
 <script>
 const $=id=>document.getElementById(id);
 let selectedFile=null, resultBlob=null, resultName='output.xlsx', t0=null;
+let fhxType='phase', emSub='em_cd';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const optOn=id=>$(id).classList.contains('on');
 
+// ── Type selector ─────────────────────────────────────────────────────────────
+const TYPE_DESC = {
+  phase:  'Exports a <strong>Phase FHX</strong> — parses RUNNING, ABORT/STOP, HOLD, RESTART and other SFC logic blocks into separate colour-coded sheets.',
+  em_cd:  'Exports a <strong>Command Driven EM</strong> — one sheet per command (HOLD, Startup, Shutdown, Run, etc.), with full step/action/transition detail.',
+  em_sd:  'Exports a <strong>State Driven EM</strong> — generates a state table with device valve positions (OPEN/CLOSE) for every configured state, colour-coded.',
+  em_fb:  '<strong>Function Block EM</strong> — coming soon.',
+};
+
+function setType(t) {
+  fhxType = t === 'em' ? emSub : t;
+  $('btn-phase').className = 'type-btn' + (t==='phase' ? ' active' : '');
+  $('btn-em').className    = 'type-btn' + (t==='em'    ? ' active-em' : '');
+  $('em-sub').className    = 'em-sub'   + (t==='em'    ? ' show' : '');
+  updateTypeUI();
+}
+
+function setEmSub(sub) {
+  emSub = sub; fhxType = sub;
+  ['sub-cd','sub-sd','sub-fb'].forEach(id => {
+    const el=$(id); if(!el) return;
+    el.className = 'sub-btn' + (id==='sub-cd'&&sub==='em_cd' ? ' active'
+                              : id==='sub-sd'&&sub==='em_sd' ? ' active-sd' : '');
+  });
+  updateTypeUI();
+}
+
+function updateTypeUI() {
+  $('type-desc').innerHTML = TYPE_DESC[fhxType] || '';
+  // Hide transitions/expressions options for state driven (not applicable)
+  const isSd = fhxType === 'em_sd';
+  $('opt-transitions-row').classList.toggle('hidden', isSd);
+  $('opt-expressions-row').classList.toggle('hidden', isSd);
+  // Update stat labels
+  if(fhxType==='em_sd'){
+    $('sAL').textContent='EM(s)'; $('sBL').textContent='States'; $('sCL').textContent='Devices';
+  } else if(fhxType==='em_cd'){
+    $('sAL').textContent='Commands'; $('sBL').textContent='Steps'; $('sCL').textContent='Actions';
+  } else {
+    $('sAL').textContent='Blocks'; $('sBL').textContent='Steps'; $('sCL').textContent='Actions';
+  }
+  // Update terminal title
+  const labels={phase:'phase mode',em_cd:'command driven EM',em_sd:'state driven EM',em_fb:'function block EM'};
+  $('termTitle').textContent = 'fhx-parser · ' + (labels[fhxType]||fhxType) + ' · process log';
+  // Reset results
+  $('results').classList.remove('show');
+  resultBlob = null;
+  ['sA','sB','sC'].forEach(id=>$(id).textContent='—');
+}
+
+// ── File handling ─────────────────────────────────────────────────────────────
+const dz=$('dropZone'), fi=$('fileInput');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');
+  const f=e.dataTransfer.files[0]; if(f) setFile(f);});
+fi.addEventListener('change',e=>{if(e.target.files[0])setFile(e.target.files[0]);fi.value='';});
+
+function setFile(f){
+  selectedFile=f;
+  $('fcName').textContent=f.name;
+  $('fcMeta').textContent=fmt(f.size)+' · ready to process';
+  $('fileCard').classList.add('show');
+  $('runBtn').disabled=false;
+  $('results').classList.remove('show');
+  resultBlob=null;
+  $('terminal').innerHTML='';
+  t0=null;setStatus('idle');setProgress(0);
+  log('File selected: '+f.name,'ok');
+  log(fmt(f.size)+' · click PROCESS FILE to begin','dim');
+}
+function clearFile(){
+  selectedFile=null;resultBlob=null;
+  $('fileCard').classList.remove('show');
+  $('runBtn').disabled=true;
+  $('results').classList.remove('show');
+  ['sA','sB','sC'].forEach(id=>$(id).textContent='—');
+}
+
+// ── Logging helpers ───────────────────────────────────────────────────────────
 function ts(){
   if(!t0)return'--:--:---';
   const d=Date.now()-t0;
-  return String(Math.floor(d/60000)).padStart(2,'0')+':'+String(Math.floor(d/1000)%60).padStart(2,'0')+'.'+String(d%1000).padStart(3,'0');
+  return String(Math.floor(d/60000)).padStart(2,'0')+':'+
+         String(Math.floor(d/1000)%60).padStart(2,'0')+'.'+
+         String(d%1000).padStart(3,'0');
 }
 function log(msg,type='dim'){
   const t=$('terminal'),row=document.createElement('div');
@@ -226,67 +387,46 @@ function setStatus(s){
   el.className='term-status '+s;
   el.textContent={idle:'IDLE',running:'RUNNING',done:'DONE',error:'ERROR'}[s]||s.toUpperCase();
 }
-function fmtBytes(b){return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB';}
+function fmt(b){return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB';}
 
-// File selection
-const dz=$('dropZone'), fi=$('fileInput');
-dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
-dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');const f=e.dataTransfer.files[0];if(f)setFile(f);});
-fi.addEventListener('change',e=>{if(e.target.files[0])setFile(e.target.files[0]);fi.value='';});
-
-function setFile(f){
-  selectedFile=f;
-  $('fcName').textContent=f.name;
-  $('fcMeta').textContent=fmtBytes(f.size)+' · ready to process';
-  $('fileCard').classList.add('show');
-  $('runBtn').disabled=false;
-  $('results').classList.remove('show');
-  resultBlob=null;
-  $('terminal').innerHTML='';
-  t0=null;setStatus('idle');setProgress(0);
-  log('File selected: '+f.name,'ok');
-  log(fmtBytes(f.size)+' · click PROCESS FILE to begin','dim');
-}
-function clearFile(){
-  selectedFile=null;resultBlob=null;
-  $('fileCard').classList.remove('show');
-  $('runBtn').disabled=true;
-  $('results').classList.remove('show');
-  ['sBlocks','sSteps','sActions'].forEach(id=>$(id).textContent='—');
-}
-
-// Parse FHX in-browser just for the live log display
+// ── Quick browser-side scan for live log display ───────────────────────────────
 function decodeFhx(buf){
   const b=new Uint8Array(buf);
   if(b[0]===0xFF&&b[1]===0xFE)return new TextDecoder('utf-16le').decode(buf).replace(/^\uFEFF/,'');
-  if(b[0]===0xFE&&b[1]===0xFF)return new TextDecoder('utf-16be').decode(buf).replace(/^\uFEFF/,'');
   return new TextDecoder('utf-8').decode(buf);
 }
-function quickScan(buf){
+function quickScan(buf, type){
   const text=decodeFhx(buf);
-  const fbNames=[...text.matchAll(/FUNCTION_BLOCK_DEFINITION NAME="([^"]+)"/g)].map(m=>m[1]);
-  const steps=[...text.matchAll(/STEP NAME="([^"]+)"/g)].length;
-  const actions=[...text.matchAll(/ACTION NAME="([^"]+)"/g)].length;
-  const transitions=[...text.matchAll(/TRANSITION NAME="([^"]+)"/g)].length;
-  return{fbNames,steps,actions,transitions};
+  if(type==='phase'){
+    const fbs=[...text.matchAll(/FUNCTION_BLOCK_DEFINITION\s+NAME="([^"]+)"/g)].map(m=>m[1]);
+    const steps=[...text.matchAll(/STEP\s+NAME=/g)].length;
+    const actions=[...text.matchAll(/ACTION\s+NAME=/g)].length;
+    return{labels:fbs, a:fbs.length, b:steps, c:actions,
+           aL:'Blocks', bL:'Steps', cL:'Actions'};
+  } else if(type==='em_cd'){
+    const cmds=[...text.matchAll(/T_IN_\d+[^}]+A_COMMAND[^:]+:([^']+)'/g)].map(m=>m[1].trim());
+    const steps=[...text.matchAll(/STEP\s+NAME=/g)].length;
+    const actions=[...text.matchAll(/ACTION\s+NAME=/g)].length;
+    return{labels:cmds, a:cmds.length, b:steps, c:actions,
+           aL:'Commands', bL:'Steps', cL:'Actions'};
+  } else if(type==='em_sd'){
+    const states=[...text.matchAll(/T_IN_\d+[^}]+A_COMMAND[^:]+:([^']+)'/g)].map(m=>m[1].trim());
+    const devices=[...text.matchAll(/ATTRIBUTE\s+NAME="([^"]+)"[^\{]*\{[^\}]*GROUP="I\/O"/g)].map(m=>m[1]);
+    const uniqueDev=[...new Set(devices)];
+    return{labels:states, a:1, b:states.length, c:uniqueDev.length,
+           aL:'EM(s)', bL:'States', cL:'Devices'};
+  }
+  return{labels:[], a:0, b:0, c:0, aL:'', bL:'', cL:''};
 }
 
-const LABEL={
-  'CNT_CIP_INIT_ABT':'ABORT_STOP','PROMPT_LOOP':'PROMPT_LOOP',
-  '__6301D2D9_179FAC11__':'HOLD','__6234329E_13C1E835__':'RESTART',
-  '__63699255_143E0A8C__':'RUNNING','__6261087C_00C321A4__':'CONDITION',
-};
-function pillClass(lbl){
-  if(lbl.includes('RUN'))return'spill-RUN';
-  if(lbl.includes('ABORT')||lbl.includes('STOP'))return'spill-ABORT';
-  if(lbl.includes('HOLD'))return'spill-HOLD';
-  if(lbl.includes('RESTART'))return'spill-RESTART';
-  return'spill-OTHER';
-}
+// ── Pill colour by type ───────────────────────────────────────────────────────
+function pillClass(type){ return type==='phase'?'spill-phase':type==='em_cd'?'spill-cmd':'spill-state'; }
 
+// ── Main conversion ────────────────────────────────────────────────────────────
 async function runConversion(){
-  if(!selectedFile)return;
+  if(!selectedFile) return;
+  if(fhxType==='em_fb'){ log('Function Block EM parser coming soon.','warn'); return; }
+
   t0=Date.now();
   $('terminal').innerHTML='';
   $('results').classList.remove('show');
@@ -294,74 +434,77 @@ async function runConversion(){
   resultBlob=null;
 
   const btn=$('runBtn');
-  btn.disabled=true;btn.classList.add('running');btn.innerHTML='◼ &nbsp;PROCESSING…';
-  setStatus('running');setProgress(0);
+  btn.disabled=true; btn.classList.add('running');
+  btn.innerHTML='◼ &nbsp;PROCESSING…';
+  setStatus('running'); setProgress(0);
 
   try{
+    const typeLabels={phase:'PHASE',em_cd:'COMMAND DRIVEN EM',em_sd:'STATE DRIVEN EM'};
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
-    log('FHX → EXCEL  ·  '+new Date().toLocaleTimeString(),'head');
+    log('FHX → EXCEL  ·  '+typeLabels[fhxType]+'  ·  '+new Date().toLocaleTimeString(),'head');
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
     await sleep(60);
 
-    // Read file for live scan display
-    log('Reading file…','step');setProgress(8);await sleep(80);
+    log('Reading file: '+selectedFile.name,'step'); setProgress(8); await sleep(80);
     const buf=await selectedFile.arrayBuffer();
     const isU16=new Uint8Array(buf)[0]===0xFF;
     log('Encoding: '+(isU16?'UTF-16 LE':'UTF-8'),'ok');
-    log(fmtBytes(buf.byteLength)+' loaded','dim');
-    await sleep(60);
+    log(fmt(buf.byteLength)+' loaded','dim'); await sleep(60);
 
-    // Quick browser-side scan for live display only
-    log('Scanning structure…','step');setProgress(18);await sleep(80);
-    const scan=quickScan(buf);
-    log(scan.fbNames.length+' logic blocks · '+scan.steps+' steps · '+scan.actions+' actions','ok');
-    scan.fbNames.forEach(n=>{
-      const lbl=LABEL[n]||n;
-      log('  · '+n+(LABEL[n]?'  →  ['+lbl+']':''),'dim');
-    });
-    $('sBlocks').textContent=scan.fbNames.length;
-    $('sSteps').textContent=scan.steps;
-    $('sActions').textContent=scan.actions;
+    log('Scanning structure…','step'); setProgress(18); await sleep(80);
+    const scan=quickScan(buf, fhxType);
+    $('sA').textContent=scan.a; $('sB').textContent=scan.b; $('sC').textContent=scan.c;
+    $('sAL').textContent=scan.aL; $('sBL').textContent=scan.bL; $('sCL').textContent=scan.cL;
+
+    if(fhxType==='phase'){
+      log(scan.a+' logic blocks · '+scan.b+' steps · '+scan.c+' actions found','ok');
+      scan.labels.forEach(n=>log('  · '+n,'dim'));
+    } else if(fhxType==='em_cd'){
+      log(scan.a+' commands · '+scan.b+' steps · '+scan.c+' actions','ok');
+      scan.labels.forEach(n=>log('  · Command: '+n,'dim'));
+    } else {
+      log('1 State Driven EM · '+scan.b+' states · '+scan.c+' device(s)','ok');
+      scan.labels.slice(0,8).forEach(n=>log('  · State: '+n,'dim'));
+      if(scan.labels.length>8) log('  · … and '+(scan.labels.length-8)+' more states','dim');
+    }
     await sleep(80);
 
     // Pills preview
     const pills=$('sheetPills');
     if(optOn('optSummary')){
-      const p=document.createElement('div');p.className='spill spill-OTHER';
+      const p=document.createElement('div');p.className='spill spill-summ';
       p.innerHTML='<div class="sd"></div>SUMMARY';pills.appendChild(p);
     }
-    scan.fbNames.forEach(n=>{
-      const lbl=(LABEL[n]||n).slice(0,31);
-      const p=document.createElement('div');p.className='spill '+pillClass(lbl);
+    scan.labels.forEach(n=>{
+      const p=document.createElement('div');
+      p.className='spill '+pillClass(fhxType);
+      const lbl=n.replace(/[\/\\\?\*\[\]\:\s]/g,'_').slice(0,20);
       p.innerHTML='<div class="sd"></div>'+lbl;pills.appendChild(p);
     });
 
-    // Send to Python backend
-    log('Sending to Python backend for styled Excel generation…','step');
-    setProgress(40);await sleep(80);
+    log('Uploading to Python backend for styled Excel generation…','step');
+    setProgress(45); await sleep(80);
 
     const formData=new FormData();
-    formData.append('file',selectedFile);
-    formData.append('transitions',optOn('optTransitions')?'true':'false');
-    formData.append('summary',optOn('optSummary')?'true':'false');
-    formData.append('expressions',optOn('optExpressions')?'true':'false');
+    formData.append('file', selectedFile);
+    formData.append('fhx_type', fhxType);
+    formData.append('transitions', optOn('optTransitions')?'true':'false');
+    formData.append('summary',     optOn('optSummary')?'true':'false');
+    formData.append('expressions', optOn('optExpressions')?'true':'false');
 
-    log('Uploading file to server…','dim');setProgress(55);
     const resp=await fetch('/convert',{method:'POST',body:formData});
-
     if(!resp.ok){
       const err=await resp.json().catch(()=>({error:'Server error '+resp.status}));
       throw new Error(err.error||'Server returned '+resp.status);
     }
 
-    setProgress(85);
-    log('Receiving styled Excel workbook…','dim');await sleep(60);
-
+    setProgress(90);
+    log('Receiving styled Excel workbook…','dim'); await sleep(60);
     resultBlob=await resp.blob();
     resultName=selectedFile.name.replace(/\.fhx$/i,'')+'_Logic.xlsx';
     setProgress(100);
 
-    log('Excel generated by Python/openpyxl — full styling preserved','ok');
+    log('Excel generated by Python/openpyxl — full professional styling','ok');
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
     log('DONE  ·  elapsed '+ts(),'ok');
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
@@ -370,20 +513,20 @@ async function runConversion(){
 
   }catch(e){
     log('ERROR: '+e.message,'err');
-    setStatus('error');setProgress(0);
+    setStatus('error'); setProgress(0);
   }finally{
-    btn.disabled=false;btn.classList.remove('running');btn.innerHTML='▶ &nbsp;PROCESS FILE';
+    btn.disabled=false; btn.classList.remove('running');
+    btn.innerHTML='▶ &nbsp;PROCESS FILE';
   }
 }
 
 function downloadResult(){
-  if(!resultBlob)return;
+  if(!resultBlob) return;
   const a=document.createElement('a');
   a.href=URL.createObjectURL(resultBlob);
   a.download=resultName;
-  document.body.appendChild(a);a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(a.href);
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(a.href);
   log('Downloaded: '+resultName,'ok');
 }
 </script>
