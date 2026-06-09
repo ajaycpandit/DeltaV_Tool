@@ -213,13 +213,17 @@ header h1 span{color:var(--accent)}
       </div>
     </div>
 
-    <!-- Drop Zone -->
+    <!-- Drop Zone — visual only, triggers hidden input -->
     <div class="drop-zone" id="dropZone">
       <input type="file" id="fileInput" accept=".fhx,.FHX"/>
       <span class="dz-icon">📂</span>
       <p><strong>Drop your .fhx file here</strong><br>or click to browse<br><br>
          DeltaV Export · <code>UTF-16 LE</code> supported</p>
     </div>
+
+    <!-- Hidden second input — triggered by the Process button for guaranteed file access -->
+    <input type="file" id="fileInputProcess" accept=".fhx,.FHX"
+           style="display:none" onchange="handleProcessInput(this)"/>
 
     <div class="file-card" id="fileCard">
       <div><div class="fc-name" id="fcName">—</div><div class="fc-meta" id="fcMeta">—</div></div>
@@ -339,48 +343,64 @@ function updateTypeUI() {
 }
 
 // ── File handling ─────────────────────────────────────────────────────────────
+// Strategy: the PROCESS FILE button triggers a fresh <input type="file"> pick.
+// This guarantees the file is read inside a live user-gesture — no permission errors ever.
+// The drop zone / browse input are for preview/UX only.
+
 const dz=$('dropZone'), fi=$('fileInput');
 dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over');});
 dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
-dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');
-  const f=e.dataTransfer.files[0]; if(f) setFile(f);});
-fi.addEventListener('change',e=>{if(e.target.files[0])setFile(e.target.files[0]);fi.value='';});
+dz.addEventListener('drop',e=>{
+  e.preventDefault(); dz.classList.remove('over');
+  const f=e.dataTransfer.files[0]; if(f) previewFile(f);
+});
+fi.addEventListener('change',e=>{
+  if(e.target.files[0]) previewFile(e.target.files[0]);
+  fi.value='';
+});
 
-function setFile(f){
+// Preview — just shows the filename and enables the button. No file read yet.
+function previewFile(f){
   selectedFile=f; fileBuffer=null;
   $('fcName').textContent=f.name;
-  $('fcMeta').textContent=fmt(f.size)+' · reading…';
+  $('fcMeta').textContent=fmt(f.size)+' · click PROCESS FILE to convert';
   $('fileCard').classList.add('show');
-  $('runBtn').disabled=true;   // enabled only after buffer is ready
+  $('runBtn').disabled=false;
   $('results').classList.remove('show');
   resultBlob=null;
   $('terminal').innerHTML='';
   t0=null; setStatus('idle'); setProgress(0);
-  log('File selected: '+f.name,'step');
-  log(fmt(f.size)+' · loading into memory…','dim');
-
-  // Read the buffer NOW, inside the user-gesture callback.
-  // Deferring to button-click causes "permission denied" in all browsers.
-  const reader=new FileReader();
-  reader.onload=e=>{
-    fileBuffer=e.target.result;
-    $('fcMeta').textContent=fmt(fileBuffer.byteLength)+' · ready';
-    $('runBtn').disabled=false;
-    log('Loaded into memory: '+fmt(fileBuffer.byteLength),'ok');
-    log('Click PROCESS FILE to begin','dim');
-  };
-  reader.onerror=()=>{
-    log('Read error: '+reader.error,'err');
-    $('fcMeta').textContent='read error — try again';
-  };
-  reader.readAsArrayBuffer(f);
+  log('File selected: '+f.name,'ok');
+  log('Click PROCESS FILE to begin','dim');
 }
+
 function clearFile(){
   selectedFile=null; fileBuffer=null; resultBlob=null;
   $('fileCard').classList.remove('show');
   $('runBtn').disabled=true;
   $('results').classList.remove('show');
   ['sA','sB','sC'].forEach(id=>$(id).textContent='—');
+}
+
+// handleProcessInput — called when the hidden file input (triggered by Process button) fires
+function handleProcessInput(input){
+  const f=input.files[0];
+  if(!f){ log('No file selected','err'); return; }
+  selectedFile=f;
+  // Read immediately — we are still inside the user-gesture callback
+  const reader=new FileReader();
+  reader.onload=e=>{
+    fileBuffer=e.target.result;
+    input.value='';
+    doConvert();   // proceed now that buffer is ready
+  };
+  reader.onerror=()=>{
+    input.value='';
+    log('File read error: '+reader.error,'err');
+    log('Please try again or use a different browser','warn');
+    resetBtn();
+  };
+  reader.readAsArrayBuffer(f);
 }
 
 // ── Logging helpers ───────────────────────────────────────────────────────────
@@ -404,6 +424,11 @@ function setStatus(s){
   el.textContent={idle:'IDLE',running:'RUNNING',done:'DONE',error:'ERROR'}[s]||s.toUpperCase();
 }
 function fmt(b){return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB';}
+function resetBtn(){
+  const btn=$('runBtn');
+  btn.disabled=false; btn.classList.remove('running');
+  btn.innerHTML='▶ &nbsp;PROCESS FILE';
+}
 
 // ── Quick browser-side scan for live log display ───────────────────────────────
 function decodeFhx(buf){
@@ -417,94 +442,92 @@ function quickScan(buf, type){
     const fbs=[...text.matchAll(/FUNCTION_BLOCK_DEFINITION\s+NAME="([^"]+)"/g)].map(m=>m[1]);
     const steps=[...text.matchAll(/STEP\s+NAME=/g)].length;
     const actions=[...text.matchAll(/ACTION\s+NAME=/g)].length;
-    return{labels:fbs, a:fbs.length, b:steps, c:actions,
-           aL:'Blocks', bL:'Steps', cL:'Actions'};
+    return{labels:fbs, a:fbs.length, b:steps, c:actions, aL:'Blocks', bL:'Steps', cL:'Actions'};
   } else if(type==='em_cd'){
     const cmds=[...text.matchAll(/T_IN_\d+[^}]+A_COMMAND[^:]+:([^']+)'/g)].map(m=>m[1].trim());
     const steps=[...text.matchAll(/STEP\s+NAME=/g)].length;
     const actions=[...text.matchAll(/ACTION\s+NAME=/g)].length;
-    return{labels:cmds, a:cmds.length, b:steps, c:actions,
-           aL:'Commands', bL:'Steps', cL:'Actions'};
+    return{labels:cmds, a:cmds.length, b:steps, c:actions, aL:'Commands', bL:'Steps', cL:'Actions'};
   } else if(type==='em_sd'){
     const states=[...text.matchAll(/T_IN_\d+[^}]+A_COMMAND[^:]+:([^']+)'/g)].map(m=>m[1].trim());
     const devices=[...text.matchAll(/ATTRIBUTE\s+NAME="([^"]+)"[^\{]*\{[^\}]*GROUP="I\/O"/g)].map(m=>m[1]);
-    const uniqueDev=[...new Set(devices)];
-    return{labels:states, a:1, b:states.length, c:uniqueDev.length,
+    return{labels:states, a:1, b:states.length, c:[...new Set(devices)].length,
            aL:'EM(s)', bL:'States', cL:'Devices'};
   }
   return{labels:[], a:0, b:0, c:0, aL:'', bL:'', cL:''};
 }
 
-// ── Pill colour by type ───────────────────────────────────────────────────────
 function pillClass(type){ return type==='phase'?'spill-phase':type==='em_cd'?'spill-cmd':'spill-state'; }
 
-// ── Main conversion ────────────────────────────────────────────────────────────
-async function runConversion(){
-  if(!fileBuffer){ log('No file loaded — please select a file first','err'); return; }
+// ── Process button click — triggers fresh file pick ────────────────────────────
+function runConversion(){
   if(fhxType==='em_fb'){ log('Function Block EM parser coming soon.','warn'); return; }
 
+  const btn=$('runBtn');
+  btn.disabled=true; btn.classList.add('running');
+  btn.innerHTML='◼ &nbsp;PROCESSING…';
   t0=Date.now();
   $('terminal').innerHTML='';
   $('results').classList.remove('show');
   $('sheetPills').innerHTML='';
   resultBlob=null;
-
-  const btn=$('runBtn');
-  btn.disabled=true; btn.classList.add('running');
-  btn.innerHTML='◼ &nbsp;PROCESSING…';
   setStatus('running'); setProgress(0);
 
+  // Trigger a fresh file pick — this is inside a click handler (user gesture),
+  // so the browser grants full file read access. No permission errors.
+  const fp=$('fileInputProcess');
+  // Pre-populate the name label so the picker opens to the right file type
+  fp.click();
+}
+
+// ── Actual conversion — called after FileReader completes ──────────────────────
+async function doConvert(){
   try{
     const typeLabels={phase:'PHASE',em_cd:'COMMAND DRIVEN EM',em_sd:'STATE DRIVEN EM'};
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
     log('FHX → EXCEL  ·  '+typeLabels[fhxType]+'  ·  '+new Date().toLocaleTimeString(),'head');
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
-    await sleep(60);
 
-    // Use the pre-read buffer — no arrayBuffer() call here
-    log('Using pre-loaded buffer: '+fmt(fileBuffer.byteLength),'step');
-    setProgress(8); await sleep(80);
     const isU16=new Uint8Array(fileBuffer)[0]===0xFF;
-    log('Encoding: '+(isU16?'UTF-16 LE':'UTF-8'),'ok');
-    log(fmt(fileBuffer.byteLength)+' ready','dim'); await sleep(60);
+    log('File: '+selectedFile.name,'ok');
+    log('Encoding: '+(isU16?'UTF-16 LE':'UTF-8')+'  ·  '+fmt(fileBuffer.byteLength),'dim');
+    setProgress(12);
 
-    log('Scanning structure…','step'); setProgress(18); await sleep(80);
     const scan=quickScan(fileBuffer, fhxType);
     $('sA').textContent=scan.a; $('sB').textContent=scan.b; $('sC').textContent=scan.c;
     $('sAL').textContent=scan.aL; $('sBL').textContent=scan.bL; $('sCL').textContent=scan.cL;
 
     if(fhxType==='phase'){
-      log(scan.a+' logic blocks · '+scan.b+' steps · '+scan.c+' actions found','ok');
+      log(scan.a+' logic blocks · '+scan.b+' steps · '+scan.c+' actions','ok');
       scan.labels.forEach(n=>log('  · '+n,'dim'));
     } else if(fhxType==='em_cd'){
       log(scan.a+' commands · '+scan.b+' steps · '+scan.c+' actions','ok');
       scan.labels.forEach(n=>log('  · Command: '+n,'dim'));
     } else {
-      log('1 State Driven EM · '+scan.b+' states · '+scan.c+' device(s)','ok');
-      scan.labels.slice(0,8).forEach(n=>log('  · State: '+n,'dim'));
-      if(scan.labels.length>8) log('  · … and '+(scan.labels.length-8)+' more states','dim');
+      log('State Driven EM · '+scan.b+' states · '+scan.c+' device(s)','ok');
+      scan.labels.slice(0,8).forEach(n=>log('  · '+n,'dim'));
+      if(scan.labels.length>8) log('  · … and '+(scan.labels.length-8)+' more','dim');
     }
-    await sleep(80);
+    setProgress(30);
 
-    // Pills preview
+    // Sheet pills preview
     const pills=$('sheetPills');
     if(optOn('optSummary')){
-      const p=document.createElement('div');p.className='spill spill-summ';
-      p.innerHTML='<div class="sd"></div>SUMMARY';pills.appendChild(p);
+      const p=document.createElement('div'); p.className='spill spill-summ';
+      p.innerHTML='<div class="sd"></div>SUMMARY'; pills.appendChild(p);
     }
     scan.labels.forEach(n=>{
       const p=document.createElement('div');
       p.className='spill '+pillClass(fhxType);
-      const lbl=n.replace(/[\/\\\?\*\[\]\:\s]/g,'_').slice(0,20);
-      p.innerHTML='<div class="sd"></div>'+lbl;pills.appendChild(p);
+      p.innerHTML='<div class="sd"></div>'+n.replace(/[\/\\\?\*\[\]\:\s]/g,'_').slice(0,20);
+      pills.appendChild(p);
     });
 
-    log('Uploading to Python backend for styled Excel generation…','step');
-    setProgress(45); await sleep(80);
+    log('Sending to Python backend…','step');
+    setProgress(45);
 
+    const blob=new Blob([fileBuffer],{type:'application/octet-stream'});
     const formData=new FormData();
-    // Use the pre-read buffer as a Blob — the File object reference may be stale
-    const blob=new Blob([fileBuffer], {type:'application/octet-stream'});
     formData.append('file', blob, selectedFile.name);
     formData.append('fhx_type', fhxType);
     formData.append('transitions', optOn('optTransitions')?'true':'false');
@@ -516,14 +539,11 @@ async function runConversion(){
       const err=await resp.json().catch(()=>({error:'Server error '+resp.status}));
       throw new Error(err.error||'Server returned '+resp.status);
     }
-
     setProgress(90);
-    log('Receiving styled Excel workbook…','dim'); await sleep(60);
+    log('Receiving Excel workbook…','dim');
     resultBlob=await resp.blob();
     resultName=selectedFile.name.replace(/\.fhx$/i,'')+'_Logic.xlsx';
     setProgress(100);
-
-    log('Excel generated by Python/openpyxl — full professional styling','ok');
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
     log('DONE  ·  elapsed '+ts(),'ok');
     log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
@@ -534,8 +554,7 @@ async function runConversion(){
     log('ERROR: '+e.message,'err');
     setStatus('error'); setProgress(0);
   }finally{
-    btn.disabled=false; btn.classList.remove('running');
-    btn.innerHTML='▶ &nbsp;PROCESS FILE';
+    resetBtn();
   }
 }
 
