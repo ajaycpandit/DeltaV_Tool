@@ -5,7 +5,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, expose_headers=['X-Sheet-Names'])
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SHARED UTILITIES
@@ -663,9 +663,19 @@ def convert():
     except Exception as e:
         return jsonify({'error': f'Parse error: {str(e)}'}), 500
 
-    return send_file(buf, as_attachment=True,
-                     download_name=fname + '_Logic.xlsx',
-                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    # Build response with sheet names in header so client can show pills
+    response = send_file(buf, as_attachment=True,
+                         download_name=fname + '_Logic.xlsx',
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+    # Read workbook sheet names before the buffer is consumed
+    buf.seek(0)
+    import openpyxl as _ox
+    _wb = _ox.load_workbook(buf, read_only=True)
+    response.headers['X-Sheet-Names'] = '|'.join(_wb.sheetnames)
+    _wb.close()
+    buf.seek(0)
+    return response
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))

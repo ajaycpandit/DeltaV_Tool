@@ -213,15 +213,13 @@ header h1 span{color:var(--accent)}
       </div>
     </div>
 
-    <!-- Drop Zone — visual only, triggers hidden input -->
-    <div class="drop-zone" id="dropZone">
-      <input type="file" id="fileInput" accept=".fhx,.FHX"/>
+    <!-- Drop Zone -->
+    <div class="drop-zone" id="dropZone" onclick="$('fileInput').click()">
+      <input type="file" id="fileInput" style="display:none"/>
       <span class="dz-icon">📂</span>
       <p><strong>Drop your .fhx file here</strong><br>or click to browse<br><br>
          DeltaV Export · <code>UTF-16 LE</code> supported</p>
     </div>
-
-
 
     <div class="file-card" id="fileCard">
       <div><div class="fc-name" id="fcName">—</div><div class="fc-meta" id="fcMeta">—</div></div>
@@ -457,44 +455,11 @@ async function runConversion(){
   log('FHX → EXCEL  ·  '+typeLabels[fhxType]+'  ·  '+new Date().toLocaleTimeString(),'head');
   log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
   log('File: '+selectedFile.name+'  ('+fmt(selectedFile.size)+')','ok');
+  log('Sending to server for processing…','step');
+  setProgress(30);
 
-  // Best-effort scan for live display — skip gracefully if browser blocks it
-  try{
-    const buf = await selectedFile.arrayBuffer();
-    const text = decodeBuf(buf);
-    const isU16 = new Uint8Array(buf)[0]===0xFF;
-    log('Encoding: '+(isU16?'UTF-16 LE':'UTF-8'),'dim');
-    const scan = quickScan(text, fhxType);
-    $('sA').textContent=scan.a; $('sB').textContent=scan.b; $('sC').textContent=scan.c;
-    $('sAL').textContent=scan.aL; $('sBL').textContent=scan.bL; $('sCL').textContent=scan.cL;
-    if(fhxType==='phase'){
-      log(scan.a+' logic blocks · '+scan.b+' steps · '+scan.c+' actions','ok');
-      scan.labels.forEach(n=>log('  · '+n,'dim'));
-    } else if(fhxType==='em_cd'){
-      log(scan.a+' commands · '+scan.b+' steps · '+scan.c+' actions','ok');
-      scan.labels.forEach(n=>log('  · Command: '+n,'dim'));
-    } else {
-      log('State Driven EM · '+scan.b+' states · '+scan.c+' device(s)','ok');
-      scan.labels.slice(0,8).forEach(n=>log('  · '+n,'dim'));
-      if(scan.labels.length>8) log('  · … and '+(scan.labels.length-8)+' more','dim');
-    }
-    // Pills
-    const pills=$('sheetPills');
-    if(optOn('optSummary')){
-      const p=document.createElement('div'); p.className='spill spill-summ';
-      p.innerHTML='<div class="sd"></div>SUMMARY'; pills.appendChild(p);
-    }
-    scan.labels.forEach(n=>{
-      const p=document.createElement('div'); p.className='spill '+pillClass(fhxType);
-      p.innerHTML='<div class="sd"></div>'+n.replace(/[\/\\\?\*\[\]\:\s]/g,'_').slice(0,20);
-      pills.appendChild(p);
-    });
-  } catch(scanErr){
-    log('(Scan skipped — proceeding to upload)','dim');
-  }
-
-  setProgress(40);
-  log('Uploading to server…','step');
+  // Skip browser-side scan entirely — go straight to upload.
+  // The server does all parsing; the browser just streams the file.
 
   try{
     // Pass the File object directly to FormData — no FileReader involved.
@@ -507,6 +472,8 @@ async function runConversion(){
     fd.append('expressions', optOn('optExpressions')?'true':'false');
 
     const resp = await fetch('/convert', {method:'POST', body:fd});
+    setProgress(70);
+    log('Upload complete — generating Excel…','ok');
     if(!resp.ok){
       const err = await resp.json().catch(()=>({error:'Server error '+resp.status}));
       throw new Error(err.error||'Server returned '+resp.status);
@@ -514,6 +481,22 @@ async function runConversion(){
 
     setProgress(90);
     log('Receiving Excel workbook…','dim');
+
+    // Populate sheet pills from server header
+    const sheetNames = resp.headers.get('X-Sheet-Names');
+    if(sheetNames){
+      const pills=$('sheetPills');
+      sheetNames.split('|').forEach(name=>{
+        const p=document.createElement('div');
+        p.className='spill '+(name==='SUMMARY'?'spill-summ':pillClass(fhxType));
+        p.innerHTML='<div class="sd"></div>'+name.trim();
+        pills.appendChild(p);
+      });
+      // Update stat boxes: sheets minus SUMMARY
+      const logicSheets = sheetNames.split('|').filter(n=>n!=='SUMMARY');
+      $('sA').textContent = logicSheets.length;
+    }
+
     resultBlob = await resp.blob();
     resultName = selectedFile.name.replace(/\.fhx$/i,'')+'_Logic.xlsx';
     setProgress(100);
