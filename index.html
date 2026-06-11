@@ -423,7 +423,13 @@ function addFiles(fileList) {
     var fd = new FormData();
     fd.append('file', f, f.name);
     fetch('/detect', {method:'POST', body:fd})
-      .then(function(r){ return r.json(); })
+      .then(function(r){
+        // Always try to parse JSON; if it fails, fall back to defaults
+        return r.text().then(function(txt){
+          try { return JSON.parse(txt); }
+          catch(e) { return {type: 'phase', fb_count:0, steps:0, actions:0, commands:[]}; }
+        });
+      })
       .then(function(data){
         var t = data.type || 'phase';
         fileMap[f.name].type    = t;
@@ -617,7 +623,11 @@ function handleSingleResponse(resp) {
     });
   }
   if (!resp.ok) {
-    return resp.json().then(function(e){ throw new Error(e.error||'Server error '+resp.status); });
+    return resp.text().then(function(txt){
+      var msg = 'Server error ' + resp.status;
+      try { msg = JSON.parse(txt).error || msg; } catch(e){}
+      throw new Error(msg);
+    });
   }
   return resp.blob().then(function(blob){
     resultBlob = blob;
@@ -648,12 +658,16 @@ function handleBatchResponse(resp) {
   lg(count+' file(s) processed, '+errs+' error(s)', parseInt(errs)>0?'warn':'ok');
   names.forEach(function(n){ lg('  ✓ '+n, 'dim'); });
   if (!resp.ok) {
-    return resp.json().then(function(e){ throw new Error(e.error||'Server error '+resp.status); });
+    return resp.text().then(function(txt){
+      var msg = 'Server error ' + resp.status;
+      try { msg = JSON.parse(txt).error || msg; } catch(e){}
+      throw new Error(msg);
+    });
   }
   return resp.blob().then(function(blob){
     resultBlob = blob;
-    var isWord  = outFmt==='word';
-    resultName  = 'FHX_Batch_'+(new Date().toISOString().slice(0,10))+(isWord?'.zip':'.xlsx');
+    var isWord = outFmt==='word';
+    resultName = 'FHX_Batch_'+(new Date().toISOString().slice(0,10))+(isWord?'.zip':'.xlsx');
     setProg(100);
     lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'head');
     lg('BATCH DONE  ·  elapsed '+ts(), 'ok');

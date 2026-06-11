@@ -1132,25 +1132,37 @@ def index():
 @app.route('/detect', methods=['POST'])
 def detect():
     """Auto-detect the FHX type without full parsing."""
-    if 'file' not in request.files:
-        return jsonify({'error': 'No file'}), 400
-    f    = request.files['file']
-    raw  = f.read()
-    text = decode_fhx(raw)
-    detected = detect_fhx_type(text)
-    # Also get quick stats
-    fb_count  = len(re.findall(r'FUNCTION_BLOCK_DEFINITION\s+NAME=', text))
-    step_count= len(re.findall(r'STEP\s+NAME=', text))
-    act_count = len(re.findall(r'ACTION\s+NAME=', text))
-    cmd_names = re.findall(r"T_IN_\d+[^}]+A_COMMAND[^:]+:([^']+)'", text)
-    cmd_names = [c.strip() for c in cmd_names]
-    return jsonify({
-        'type':     detected,
-        'fb_count': fb_count,
-        'steps':    step_count,
-        'actions':  act_count,
-        'commands': cmd_names,
-    })
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file'}), 400
+        f   = request.files['file']
+        raw = f.read()
+        text = decode_fhx(raw)
+
+        detected = detect_fhx_type(text)
+
+        # Fast stats using simple string counting (no regex backtracking)
+        fb_count   = text.count('FUNCTION_BLOCK_DEFINITION NAME=')
+        step_count = text.count('STEP NAME=')
+        act_count  = text.count('ACTION NAME=')
+
+        # Command names — only for small-enough files to avoid timeout
+        cmd_names = []
+        if len(text) < 500000:
+            cmd_names = re.findall(r"A_COMMAND[^:]+:([^'\")\s]+)", text)
+            cmd_names = [c.strip() for c in cmd_names if c.strip()][:20]
+
+        return jsonify({
+            'type':     detected,
+            'fb_count': fb_count,
+            'steps':    step_count,
+            'actions':  act_count,
+            'commands': cmd_names,
+        })
+    except Exception as e:
+        # Always return JSON, never HTML
+        return jsonify({'type': 'phase', 'fb_count': 0, 'steps': 0,
+                        'actions': 0, 'commands': [], 'warning': str(e)}), 200
 
 @app.route('/convert', methods=['POST'])
 def convert():
