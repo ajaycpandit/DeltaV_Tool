@@ -2,116 +2,142 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>FHX → Excel Converter · DeltaV</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>FHX → Excel/Word Converter · DeltaV</title>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0e0f11;--surface:#16181c;--border:#2a2d34;--border2:#3a3e47;
-  --accent:#00d4ff;--green:#00e676;--yellow:#ffd740;--red:#ff5252;--orange:#ff6b35;
+  --bg:#0e0f11;--surf:#16181c;--surf2:#1e2126;
+  --bd:#2a2d34;--bd2:#3a3e47;
+  --accent:#00d4ff;--green:#00e676;--yellow:#ffd740;--red:#ff5252;--orange:#ff6b35;--purple:#ce93d8;
   --text:#e8eaed;--muted:#7a8494;--dim:#3e4452;
   --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
 }
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px}
-body{display:flex;flex-direction:column;min-height:100vh}
+body{display:flex;flex-direction:column}
 
-/* HEADER */
-header{display:flex;align-items:center;gap:14px;padding:14px 24px;
-  background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
-.logo{width:36px;height:36px;border:1.5px solid var(--accent);display:grid;
+/* ── HEADER ── */
+header{display:flex;align-items:center;gap:12px;padding:12px 22px;
+  background:var(--surf);border-bottom:1px solid var(--bd);flex-shrink:0}
+.logo{width:34px;height:34px;border:1.5px solid var(--accent);display:grid;
   place-items:center;font-family:var(--mono);font-size:10px;font-weight:600;color:var(--accent);flex-shrink:0}
-header h1{font-size:14px;font-weight:500;letter-spacing:.04em}
+header h1{font-size:13px;font-weight:500;letter-spacing:.04em}
 header h1 span{color:var(--accent)}
 .ver{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--muted);
-  border:1px solid var(--border2);padding:2px 8px;white-space:nowrap}
+  border:1px solid var(--bd2);padding:2px 7px}
 
-/* LAYOUT */
-.main{flex:1;display:grid;grid-template-columns:400px 1fr;overflow:hidden}
-@media(max-width:800px){.main{grid-template-columns:1fr;grid-template-rows:auto 1fr}}
+/* ── LAYOUT ── */
+.main{flex:1;display:grid;grid-template-columns:420px 1fr;overflow:hidden;min-height:0}
+@media(max-width:800px){.main{grid-template-columns:1fr}}
+.left{border-right:1px solid var(--bd);display:flex;flex-direction:column;overflow-y:auto}
+.sec{padding:12px 16px;border-bottom:1px solid var(--bd)}
+.sec-ttl{font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  color:var(--muted);text-transform:uppercase;margin-bottom:10px}
 
-/* LEFT PANEL */
-.left{border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column}
-.section{padding:14px 16px;border-bottom:1px solid var(--border)}
-.section-title{font-family:var(--mono);font-size:9px;letter-spacing:.12em;
-  color:var(--muted);text-transform:uppercase;margin-bottom:12px}
+/* ── TABS (mode) ── */
+.tabs{display:flex;gap:0;margin-bottom:10px;border:1px solid var(--bd2)}
+.tab{flex:1;padding:8px 6px;font-family:var(--mono);font-size:11px;text-align:center;
+  background:var(--surf2);color:var(--muted);cursor:pointer;border:none;
+  border-right:1px solid var(--bd2);transition:all .15s;letter-spacing:.02em}
+.tab:last-child{border-right:none}
+.tab:hover{color:var(--text)}
+.tab.on{background:rgba(0,212,255,.1);color:var(--accent);font-weight:600}
 
-/* TYPE BUTTONS */
-.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px}
-.tbtn{padding:9px 8px;font-family:var(--mono);font-size:11px;letter-spacing:.03em;
-  border:1px solid var(--border2);background:var(--surface);color:var(--muted);
-  cursor:pointer;text-align:center;transition:all .15s;line-height:1.3}
-.tbtn:hover{color:var(--text);border-color:var(--border2)}
-.tbtn.sel{border-color:var(--accent);background:rgba(0,212,255,.08);color:var(--accent);font-weight:600}
-.tbtn.sel-em{border-color:var(--orange);background:rgba(255,107,53,.08);color:var(--orange);font-weight:600}
-.tbtn.sel-sd{border-color:#ce93d8;background:rgba(206,147,216,.08);color:#ce93d8;font-weight:600}
-
-.sub-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-top:6px}
-.sbtn{padding:7px 4px;font-family:var(--mono);font-size:10px;
-  border:1px solid var(--border);background:var(--bg);color:var(--muted);
-  cursor:pointer;text-align:center;transition:all .15s}
+/* ── TYPE BUTTONS ── */
+.type-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:6px}
+.tbtn{padding:8px 6px;font-family:var(--mono);font-size:11px;text-align:center;
+  border:1px solid var(--bd2);background:var(--surf2);color:var(--muted);
+  cursor:pointer;transition:all .15s;line-height:1.35}
+.tbtn:hover{color:var(--text)}
+.tbtn.tp{border-color:var(--accent);background:rgba(0,212,255,.08);color:var(--accent);font-weight:600}
+.tbtn.te{border-color:var(--orange);background:rgba(255,107,53,.08);color:var(--orange);font-weight:600}
+.sub-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:6px}
+.sbtn{padding:6px 4px;font-family:var(--mono);font-size:10px;text-align:center;
+  border:1px solid var(--bd);background:var(--bg);color:var(--muted);cursor:pointer;transition:all .15s}
 .sbtn:hover{color:var(--text)}
-.sbtn.sel{border-color:var(--orange);color:var(--orange);background:rgba(255,107,53,.06)}
-.sbtn.sel-sd{border-color:#ce93d8;color:#ce93d8;background:rgba(206,147,216,.06)}
-.sbtn:disabled{opacity:.35;cursor:default}
-
-.type-hint{font-size:11px;color:var(--muted);line-height:1.6;margin-top:8px;
-  padding:8px 10px;border-left:2px solid var(--border2)}
+.sbtn.sc{border-color:var(--orange);color:var(--orange);background:rgba(255,107,53,.06);font-weight:600}
+.sbtn.ss{border-color:var(--purple);color:var(--purple);background:rgba(206,147,216,.06);font-weight:600}
+.sbtn:disabled{opacity:.3;cursor:default}
+.type-hint{font-size:11px;color:var(--muted);line-height:1.6;padding:7px 10px;
+  border-left:2px solid var(--bd2);margin-top:4px}
 .type-hint b{color:var(--text)}
+.auto-badge{display:inline-block;font-family:var(--mono);font-size:9px;
+  padding:2px 7px;border-radius:2px;margin-left:8px;vertical-align:middle}
+.auto-badge.phase{background:rgba(0,212,255,.15);color:var(--accent)}
+.auto-badge.em_cd{background:rgba(255,107,53,.15);color:var(--orange)}
+.auto-badge.em_sd{background:rgba(206,147,216,.15);color:var(--purple)}
 
-/* FILE AREA */
-.file-label{display:block;border:1.5px dashed var(--border2);padding:24px 16px;
-  text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);
-  position:relative}
-.file-label:hover,.file-label.over{border-color:var(--accent);background:rgba(0,212,255,.05)}
-.file-label input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
-.file-label .icon{font-size:28px;margin-bottom:8px;display:block}
-.file-label p{font-size:13px;color:var(--muted);line-height:1.7}
-.file-label strong{color:var(--text)}
+/* ── FILE AREA ── */
+.drop-label{display:block;border:1.5px dashed var(--bd2);padding:20px 16px;
+  text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);position:relative}
+.drop-label:hover,.drop-label.over{border-color:var(--accent);background:rgba(0,212,255,.05)}
+.drop-label input{position:absolute;width:1px;height:1px;opacity:0}
+.drop-label .dicon{font-size:26px;display:block;margin-bottom:6px}
+.drop-label p{font-size:12px;color:var(--muted);line-height:1.7}
+.drop-label strong{color:var(--text)}
+.drop-label .hint{font-size:11px;color:var(--dim);margin-top:4px}
 
-.file-info{display:none;align-items:center;gap:10px;margin-top:10px;
-  border:1px solid var(--border2);border-left:3px solid var(--green);
-  padding:10px 12px;background:rgba(0,230,118,.04)}
-.file-info.show{display:flex}
-.fi-name{font-family:var(--mono);font-size:12px;font-weight:600;flex:1;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fi-meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:2px}
-.fi-clear{background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:2px 4px;flex-shrink:0}
-.fi-clear:hover{color:var(--red)}
+/* File list */
+.file-list{margin-top:8px;display:flex;flex-direction:column;gap:4px;max-height:120px;overflow-y:auto}
+.fitem{display:flex;align-items:center;gap:8px;padding:6px 10px;
+  border:1px solid var(--bd2);border-left:3px solid var(--green);background:rgba(0,230,118,.04)}
+.fitem.err{border-left-color:var(--red);background:rgba(255,82,82,.04)}
+.fitem.detecting{border-left-color:var(--yellow)}
+.fi-name{font-family:var(--mono);font-size:11px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fi-badge{font-family:var(--mono);font-size:9px;padding:2px 6px;flex-shrink:0;border-radius:2px}
+.fi-rm{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:0 2px;flex-shrink:0}
+.fi-rm:hover{color:var(--red)}
 
-/* OPTIONS */
+/* ── OPTIONS ── */
 .opt-row{display:flex;align-items:center;justify-content:space-between;
-  padding:7px 0;border-bottom:1px solid var(--border)}
+  padding:6px 0;border-bottom:1px solid var(--bd)}
 .opt-row:last-child{border-bottom:none}
 .opt-row.hidden{display:none}
-.opt-text{font-size:13px;color:var(--text)}
+.opt-lbl{font-size:13px;color:var(--text)}
 .opt-sub{font-size:11px;color:var(--muted);margin-top:1px}
-.tog{width:36px;height:19px;background:var(--dim);border-radius:10px;
-  border:none;cursor:pointer;position:relative;flex-shrink:0;transition:background .2s;outline:none}
+.tog{width:36px;height:19px;background:var(--dim);border-radius:10px;border:none;
+  cursor:pointer;position:relative;flex-shrink:0;transition:background .2s;outline:none}
 .tog.on{background:var(--accent)}
 .tog::after{content:'';position:absolute;width:13px;height:13px;background:#fff;
   border-radius:50%;top:3px;left:3px;transition:transform .2s}
 .tog.on::after{transform:translateX(17px)}
 
-/* STATS */
-.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:0}
-.stat{border:1px solid var(--border);padding:8px 10px;background:var(--surface)}
-.stat-n{font-family:var(--mono);font-size:18px;font-weight:600;color:var(--accent)}
+/* ── COLUMN SELECTOR ── */
+.col-grid{display:flex;flex-wrap:wrap;gap:5px;margin-top:6px}
+.col-chip{display:flex;align-items:center;gap:5px;padding:4px 8px;
+  border:1px solid var(--bd2);font-family:var(--mono);font-size:10px;
+  color:var(--muted);cursor:pointer;user-select:none;transition:all .15s}
+.col-chip.on{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.08)}
+.col-chip.fixed{border-color:var(--dim);color:var(--dim);cursor:default;opacity:.6}
+.col-chip .ck{font-size:11px}
+
+/* ── OUTPUT FORMAT ── */
+.fmt-row{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.fmt-btn{padding:8px;font-family:var(--mono);font-size:11px;text-align:center;
+  border:1px solid var(--bd2);background:var(--surf2);color:var(--muted);
+  cursor:pointer;transition:all .15s}
+.fmt-btn:hover{color:var(--text)}
+.fmt-btn.on{border-color:var(--green);background:rgba(0,230,118,.08);color:var(--green);font-weight:600}
+
+/* ── STATS ── */
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.stat{border:1px solid var(--bd);padding:8px 10px;background:var(--surf)}
+.stat-n{font-family:var(--mono);font-size:17px;font-weight:600;color:var(--accent)}
 .stat-l{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-top:2px}
 
-/* RUN BUTTON */
-.run{display:block;width:calc(100% - 32px);margin:14px 16px 16px;
-  padding:12px;background:var(--accent);color:var(--bg);
-  border:none;font-family:var(--mono);font-size:13px;font-weight:600;
-  letter-spacing:.07em;cursor:pointer;transition:all .2s;text-align:center}
-.run:hover:not(:disabled){background:#33dcff}
-.run:disabled{background:var(--dim);color:var(--muted);cursor:not-allowed}
-.run.busy{background:var(--yellow);color:var(--bg)}
+/* ── RUN BUTTON ── */
+.run-btn{display:block;width:calc(100% - 32px);margin:12px 16px;padding:11px;
+  background:var(--accent);color:var(--bg);border:none;font-family:var(--mono);
+  font-size:13px;font-weight:600;letter-spacing:.07em;cursor:pointer;transition:all .2s}
+.run-btn:hover:not(:disabled){background:#33dcff}
+.run-btn:disabled{background:var(--dim);color:var(--muted);cursor:not-allowed}
+.run-btn.busy{background:var(--yellow);color:var(--bg)}
 
-/* RIGHT PANEL */
-.right{display:flex;flex-direction:column;overflow:hidden}
+/* ── RIGHT PANEL ── */
+.right{display:flex;flex-direction:column;overflow:hidden;min-height:0}
 .term-bar{display:flex;align-items:center;gap:8px;padding:8px 16px;
-  background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0}
+  background:var(--surf);border-bottom:1px solid var(--bd);flex-shrink:0}
 .dots{display:flex;gap:5px}
 .dot{width:10px;height:10px;border-radius:50%}
 .term-lbl{font-family:var(--mono);font-size:11px;color:var(--muted)}
@@ -120,399 +146,548 @@ header h1 span{color:var(--accent)}
 .badge.run{background:rgba(255,215,64,.15);color:var(--yellow)}
 .badge.done{background:rgba(0,230,118,.12);color:var(--green)}
 .badge.err{background:rgba(255,82,82,.12);color:var(--red)}
-
-.prog{height:2px;background:var(--border);flex-shrink:0}
+.prog{height:2px;background:var(--bd);flex-shrink:0}
 .prog-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),#66e5ff);transition:width .4s}
-
-.log{flex:1;overflow-y:auto;padding:12px 16px;font-family:var(--mono);
-  font-size:12px;line-height:1.8;background:#0b0c0e;min-height:160px}
-.log::-webkit-scrollbar{width:4px}
-.log::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
-.row{display:flex;gap:10px;animation:fi .1s ease}
+.log-el{flex:1;overflow-y:auto;padding:12px 16px;font-family:var(--mono);
+  font-size:12px;line-height:1.8;background:#0b0c0e}
+.log-el::-webkit-scrollbar{width:4px}
+.log-el::-webkit-scrollbar-thumb{background:var(--bd2)}
+.lrow{display:flex;gap:10px;animation:fi .1s ease}
 @keyframes fi{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
-.row .t{color:var(--dim);flex-shrink:0;font-size:10px;padding-top:1px;min-width:58px}
-.row .m{flex:1}
-.row.ok .m{color:var(--green)}
-.row.step .m{color:var(--accent);font-weight:500}
-.row.warn .m{color:var(--yellow)}
-.row.err .m{color:var(--red)}
-.row.head .m{color:var(--orange);font-weight:600;font-size:13px}
-.row.dim .m{color:var(--muted)}
+.lrow .lt{color:var(--dim);flex-shrink:0;font-size:10px;padding-top:1px;min-width:56px}
+.lrow .lm{flex:1}
+.lrow.ok .lm{color:var(--green)}
+.lrow.step .lm{color:var(--accent);font-weight:500}
+.lrow.warn .lm{color:var(--yellow)}
+.lrow.err .lm{color:var(--red)}
+.lrow.head .lm{color:var(--orange);font-weight:600;font-size:13px}
+.lrow.dim .lm{color:var(--muted)}
 
-.result-bar{border-top:1px solid var(--border);background:var(--surface);
-  flex-shrink:0;overflow:hidden;max-height:0;transition:max-height .3s ease}
-.result-bar.show{max-height:160px}
-.result-inner{padding:12px 16px}
-.result-title{font-family:var(--mono);font-size:9px;color:var(--muted);
+/* ── RESULT PANEL ── */
+.res-bar{border-top:1px solid var(--bd);background:var(--surf);
+  max-height:0;overflow:hidden;transition:max-height .3s;flex-shrink:0}
+.res-bar.show{max-height:180px}
+.res-inner{padding:12px 16px}
+.res-ttl{font-family:var(--mono);font-size:9px;color:var(--muted);
   letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
-.pills{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
-.pill{font-family:var(--mono);font-size:11px;border:1px solid var(--border2);
+.pills{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px}
+.pill{font-family:var(--mono);font-size:11px;border:1px solid var(--bd2);
   padding:3px 8px;display:flex;align-items:center;gap:4px}
 .pill .pd{width:6px;height:6px;border-radius:50%}
-.pill-p{border-color:#2e75b6}.pill-p .pd{background:#2e75b6}
-.pill-c{border-color:var(--orange)}.pill-c .pd{background:var(--orange)}
-.pill-s{border-color:#ce93d8}.pill-s .pd{background:#ce93d8}
-.pill-z{border-color:var(--muted)}.pill-z .pd{background:var(--muted)}
-.dl{display:inline-flex;align-items:center;gap:6px;padding:8px 20px;
+.pp{border-color:#2e75b6}.pp .pd{background:#2e75b6}
+.pc{border-color:var(--orange)}.pc .pd{background:var(--orange)}
+.ps{border-color:var(--purple)}.ps .pd{background:var(--purple)}
+.pz{border-color:var(--muted)}.pz .pd{background:var(--muted)}
+.dl-btns{display:flex;gap:8px}
+.dl-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 18px;
   background:var(--green);color:var(--bg);border:none;font-family:var(--mono);
-  font-size:12px;font-weight:600;cursor:pointer;letter-spacing:.05em;transition:all .2s}
-.dl:hover{background:#33f088}
+  font-size:12px;font-weight:600;cursor:pointer;transition:all .2s}
+.dl-btn:hover{background:#33f088}
+.dl-btn.word{background:#2e75b6;color:#fff}
+.dl-btn.word:hover{background:#3d8fd1}
 </style>
 </head>
 <body>
 
 <header>
   <div class="logo">FHX</div>
-  <h1>DeltaV <span>FHX → Excel</span> Converter</h1>
+  <h1>DeltaV <span>FHX → Excel / Word</span> Converter</h1>
   <div class="ver">v5.0</div>
 </header>
 
 <div class="main">
+<div class="left">
 
-  <!-- LEFT -->
-  <div class="left">
-
-    <!-- 1. Export type -->
-    <div class="section">
-      <div class="section-title">1 · Select export type</div>
-      <div class="type-grid">
-        <button class="tbtn sel" id="btn-phase" onclick="selectType('phase')">📋 Phase</button>
-        <button class="tbtn"     id="btn-em"    onclick="selectType('em')">⚙️ Equipment Module</button>
-      </div>
-      <div class="sub-grid" id="em-subs" style="display:none">
-        <button class="sbtn sel" id="sub-cd" onclick="selectSub('em_cd')">▶ Command<br>Driven</button>
-        <button class="sbtn"     id="sub-sd" onclick="selectSub('em_sd')">◈ State<br>Driven</button>
-        <button class="sbtn" disabled title="Coming soon">ƒ Function<br>Block</button>
-      </div>
-      <div class="type-hint" id="type-hint">
-        <b>Phase FHX</b> — parses RUNNING, ABORT/STOP, HOLD, RESTART and other SFC logic blocks.
-      </div>
+  <!-- MODE: single / batch -->
+  <div class="sec">
+    <div class="sec-ttl">Mode</div>
+    <div class="tabs">
+      <button class="tab on" id="tab-single" onclick="setMode('single')">Single File</button>
+      <button class="tab"    id="tab-batch"  onclick="setMode('batch')">Batch (Multiple Files)</button>
     </div>
-
-    <!-- 2. File -->
-    <div class="section">
-      <div class="section-title">2 · Select file</div>
-      <label class="file-label" id="dropLabel">
-        <input type="file" id="fileInput"/>
-        <span class="icon">📂</span>
-        <p><strong>Click to browse</strong> or drag &amp; drop<br>
-           DeltaV .fhx export file</p>
-      </label>
-      <div class="file-info" id="fileInfo">
-        <div style="flex:1;min-width:0">
-          <div class="fi-name" id="fiName">—</div>
-          <div class="fi-meta" id="fiMeta">—</div>
-        </div>
-        <button class="fi-clear" onclick="clearFile()">✕</button>
-      </div>
-    </div>
-
-    <!-- 3. Options -->
-    <div class="section">
-      <div class="section-title">3 · Options</div>
-      <div class="opt-row" id="row-trans">
-        <div><div class="opt-text">Transitions under steps</div>
-             <div class="opt-sub">Inline outgoing transitions per step</div></div>
-        <button class="tog on" id="tog-trans" onclick="this.classList.toggle('on')"></button>
-      </div>
-      <div class="opt-row">
-        <div><div class="opt-text">Summary sheet</div>
-             <div class="opt-sub">Overview tab with all logic blocks</div></div>
-        <button class="tog on" id="tog-summ" onclick="this.classList.toggle('on')"></button>
-      </div>
-      <div class="opt-row" id="row-expr">
-        <div><div class="opt-text">Include expressions</div>
-             <div class="opt-sub">Full DeltaV expression strings</div></div>
-        <button class="tog on" id="tog-expr" onclick="this.classList.toggle('on')"></button>
-      </div>
-    </div>
-
-    <!-- Stats -->
-    <div class="section">
-      <div class="stats">
-        <div class="stat"><div class="stat-n" id="sA">—</div><div class="stat-l" id="sAL">Blocks</div></div>
-        <div class="stat"><div class="stat-n" id="sB">—</div><div class="stat-l" id="sBL">Steps</div></div>
-        <div class="stat"><div class="stat-n" id="sC">—</div><div class="stat-l" id="sCL">Actions</div></div>
-      </div>
-    </div>
-
-    <button class="run" id="runBtn" onclick="runConversion()" disabled>▶  PROCESS FILE</button>
-
-  </div><!-- /left -->
-
-  <!-- RIGHT -->
-  <div class="right">
-    <div class="term-bar">
-      <div class="dots">
-        <div class="dot" style="background:#ff5f57"></div>
-        <div class="dot" style="background:#febc2e"></div>
-        <div class="dot" style="background:#28c840"></div>
-      </div>
-      <span class="term-lbl" id="termLbl">fhx-parser · phase · log</span>
-      <span class="badge" id="badge">IDLE</span>
-    </div>
-    <div class="prog"><div class="prog-fill" id="progFill"></div></div>
-    <div class="log" id="logEl">
-      <div class="row dim"><span class="t">--:--</span><span class="m">Ready. Select export type and file, then click PROCESS FILE.</span></div>
-    </div>
-    <div class="result-bar" id="resultBar">
-      <div class="result-inner">
-        <div class="result-title">Output sheets</div>
-        <div class="pills" id="pillsEl"></div>
-        <button class="dl" onclick="downloadResult()">⬇  Download Excel</button>
-      </div>
+    <div id="mode-hint" style="font-size:11px;color:var(--muted);line-height:1.6">
+      Convert one FHX file. Type is auto-detected.
     </div>
   </div>
 
+  <!-- TYPE (single mode only) -->
+  <div class="sec" id="type-sec">
+    <div class="sec-ttl">Export type <span id="auto-lbl"></span></div>
+    <div class="type-row">
+      <button class="tbtn tp" id="btn-phase" onclick="setType('phase')">📋 Phase</button>
+      <button class="tbtn"    id="btn-em"    onclick="setType('em')">⚙️ Equipment Module</button>
+    </div>
+    <div class="sub-row" id="em-subs" style="display:none">
+      <button class="sbtn sc" id="sub-cd" onclick="setSub('em_cd')">▶ Command<br>Driven</button>
+      <button class="sbtn"    id="sub-sd" onclick="setSub('em_sd')">◈ State<br>Driven</button>
+      <button class="sbtn" disabled title="Coming soon">ƒ Function<br>Block</button>
+    </div>
+    <div class="type-hint" id="type-hint">
+      <b>Phase FHX</b> — RUNNING, ABORT/STOP, HOLD, RESTART logic blocks.
+    </div>
+  </div>
+
+  <!-- FILES -->
+  <div class="sec">
+    <div class="sec-ttl" id="file-sec-ttl">File</div>
+    <label class="drop-label" id="dropLabel">
+      <input type="file" id="fileInput" multiple/>
+      <span class="dicon">📂</span>
+      <p><strong>Click to browse</strong> or drag &amp; drop</p>
+      <div class="hint" id="file-hint">Single .fhx file</div>
+    </label>
+    <div class="file-list" id="fileList"></div>
+  </div>
+
+  <!-- OUTPUT FORMAT -->
+  <div class="sec">
+    <div class="sec-ttl">Output format</div>
+    <div class="fmt-row">
+      <button class="fmt-btn on" id="fmt-xl" onclick="setFmt('excel')">📊 Excel (.xlsx)</button>
+      <button class="fmt-btn"    id="fmt-wd" onclick="setFmt('word')"> 📄 Word DDS (.docx)</button>
+    </div>
+  </div>
+
+  <!-- COLUMN SELECTOR -->
+  <div class="sec">
+    <div class="sec-ttl">Columns in output</div>
+    <div class="col-grid" id="colGrid">
+      <div class="col-chip fixed"><span class="ck">✓</span> Step / Trans</div>
+      <div class="col-chip fixed"><span class="ck">✓</span> Description</div>
+      <div class="col-chip fixed"><span class="ck">✓</span> Action</div>
+      <div class="col-chip on" data-col="qualifier"          onclick="toggleCol(this)"><span class="ck">✓</span> Qualifier</div>
+      <div class="col-chip on" data-col="expression"         onclick="toggleCol(this)"><span class="ck">✓</span> Expression</div>
+      <div class="col-chip on" data-col="delay"              onclick="toggleCol(this)"><span class="ck">✓</span> Delay</div>
+      <div class="col-chip"    data-col="delay_expression"   onclick="toggleCol(this)"><span class="ck">○</span> Delay Expr</div>
+      <div class="col-chip on" data-col="confirm_expression" onclick="toggleCol(this)"><span class="ck">✓</span> Confirm Expr</div>
+      <div class="col-chip"    data-col="confirm_timeout"    onclick="toggleCol(this)"><span class="ck">○</span> Confirm Timeout</div>
+    </div>
+  </div>
+
+  <!-- OPTIONS -->
+  <div class="sec">
+    <div class="sec-ttl">Options</div>
+    <div class="opt-row" id="row-trans">
+      <div><div class="opt-lbl">Transitions under steps</div>
+           <div class="opt-sub">Inline outgoing transitions per step</div></div>
+      <button class="tog on" id="tog-trans" onclick="this.classList.toggle('on')"></button>
+    </div>
+    <div class="opt-row">
+      <div><div class="opt-lbl">Summary sheet</div>
+           <div class="opt-sub">Overview tab with all logic blocks</div></div>
+      <button class="tog on" id="tog-summ" onclick="this.classList.toggle('on')"></button>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="sec">
+    <div class="stats">
+      <div class="stat"><div class="stat-n" id="sA">—</div><div class="stat-l" id="sAL">Files</div></div>
+      <div class="stat"><div class="stat-n" id="sB">—</div><div class="stat-l" id="sBL">Steps</div></div>
+      <div class="stat"><div class="stat-n" id="sC">—</div><div class="stat-l" id="sCL">Actions</div></div>
+    </div>
+  </div>
+
+  <button class="run-btn" id="runBtn" onclick="run()" disabled>▶  PROCESS</button>
+
+</div><!-- /left -->
+
+<!-- RIGHT -->
+<div class="right">
+  <div class="term-bar">
+    <div class="dots">
+      <div class="dot" style="background:#ff5f57"></div>
+      <div class="dot" style="background:#febc2e"></div>
+      <div class="dot" style="background:#28c840"></div>
+    </div>
+    <span class="term-lbl" id="termLbl">fhx-parser · log</span>
+    <span class="badge" id="badge">IDLE</span>
+  </div>
+  <div class="prog"><div class="prog-fill" id="progFill"></div></div>
+  <div class="log-el" id="logEl">
+    <div class="lrow dim"><span class="lt">--:--</span>
+      <span class="lm">Select mode, drop your file(s), then click PROCESS.</span></div>
+  </div>
+  <div class="res-bar" id="resBar">
+    <div class="res-inner">
+      <div class="res-ttl" id="resTtl">Output ready</div>
+      <div class="pills" id="pillsEl"></div>
+      <div class="dl-btns" id="dlBtns"></div>
+    </div>
+  </div>
+</div>
 </div><!-- /main -->
 
 <script>
-// ─── state ───────────────────────────────────────────────────────────────────
-var fhxType  = 'phase';
-var selFile  = null;      // the File object — never read in browser, sent directly
+// ─── STATE ────────────────────────────────────────────────────────────────────
+var mode       = 'single';   // single | batch
+var fhxType    = 'phase';    // phase | em_cd | em_sd | auto
+var outFmt     = 'excel';    // excel | word
+var fileMap    = {};         // name → {file, detected_type}
+var resultBlobs= {};         // name → blob (for batch word)
 var resultBlob = null;
-var resultName = 'output.xlsx';
-var t0 = null;
+var resultName = 'output';
+var t0         = null;
 
-// ─── type selector ────────────────────────────────────────────────────────────
+// ─── MODE ─────────────────────────────────────────────────────────────────────
+function setMode(m) {
+  mode = m;
+  document.getElementById('tab-single').className = 'tab' + (m==='single'?' on':'');
+  document.getElementById('tab-batch').className  = 'tab' + (m==='batch'?' on':'');
+  document.getElementById('type-sec').style.display = m==='single' ? '' : 'none';
+  document.getElementById('file-sec-ttl').textContent = m==='batch' ? 'Files (drop multiple)' : 'File';
+  document.getElementById('file-hint').textContent    = m==='batch' ? 'Multiple .fhx files — type auto-detected per file' : 'Single .fhx file — type auto-detected';
+  document.getElementById('mode-hint').textContent    = m==='batch'
+    ? 'Convert multiple FHX files. Each file is auto-detected and gets its own tab group in a combined workbook.'
+    : 'Convert one FHX file. Type is auto-detected and shown after selection.';
+  document.getElementById('sAL').textContent = m==='batch' ? 'Files' : 'Blocks';
+  clearFiles();
+}
+
+// ─── TYPE ─────────────────────────────────────────────────────────────────────
 var HINTS = {
-  phase: '<b>Phase FHX</b> — parses RUNNING, ABORT/STOP, HOLD, RESTART and other SFC logic blocks.',
-  em_cd: '<b>Command Driven EM</b> — one sheet per command (HOLD, Startup, Shutdown, Run…) with full step/action detail.',
-  em_sd: '<b>State Driven EM</b> — state table showing device positions (OPEN/CLOSE) for every configured state.',
+  phase: '<b>Phase FHX</b> — RUNNING, ABORT/STOP, HOLD, RESTART and other SFC logic blocks.',
+  em_cd: '<b>Command Driven EM</b> — one sheet per command (HOLD, Startup, Shutdown, Run…).',
+  em_sd: '<b>State Driven EM</b> — state table with device positions (OPEN/CLOSE) per state.',
 };
-
-function selectType(t) {
-  document.getElementById('btn-phase').className = 'tbtn' + (t==='phase' ? ' sel' : '');
-  document.getElementById('btn-em').className    = 'tbtn' + (t==='em'    ? ' sel-em' : '');
+function setType(t) {
+  document.getElementById('btn-phase').className = 'tbtn' + (t==='phase'?' tp':'');
+  document.getElementById('btn-em').className    = 'tbtn' + (t==='em'?' te':'');
   document.getElementById('em-subs').style.display = t==='em' ? 'grid' : 'none';
-  if (t === 'phase') {
-    fhxType = 'phase';
-    updateHint();
-  } else {
-    // default to command driven when EM selected
-    selectSub('em_cd');
-  }
+  if (t === 'phase') { fhxType = 'phase'; }
+  else { setSub('em_cd'); return; }
+  updateTypeUI();
+}
+function setSub(s) {
+  fhxType = s;
+  document.getElementById('sub-cd').className = 'sbtn' + (s==='em_cd'?' sc':'');
+  document.getElementById('sub-sd').className = 'sbtn' + (s==='em_sd'?' ss':'');
+  updateTypeUI();
+}
+function updateTypeUI() {
+  document.getElementById('type-hint').innerHTML = HINTS[fhxType]||'';
+  var isSd = fhxType==='em_sd';
+  document.getElementById('row-trans').className = 'opt-row'+(isSd?' hidden':'');
+  document.getElementById('sAL').textContent = fhxType==='em_sd'?'EM(s)':fhxType==='em_cd'?'Cmds':'Blocks';
+  document.getElementById('sBL').textContent = fhxType==='em_sd'?'States':'Steps';
+  document.getElementById('sCL').textContent = fhxType==='em_sd'?'Devices':'Actions';
 }
 
-function selectSub(sub) {
-  fhxType = sub;
-  document.getElementById('sub-cd').className = 'sbtn' + (sub==='em_cd' ? ' sel' : '');
-  document.getElementById('sub-sd').className = 'sbtn' + (sub==='em_sd' ? ' sel-sd' : '');
-  updateHint();
+// ─── FORMAT ───────────────────────────────────────────────────────────────────
+function setFmt(f) {
+  outFmt = f;
+  document.getElementById('fmt-xl').className = 'fmt-btn'+(f==='excel'?' on':'');
+  document.getElementById('fmt-wd').className = 'fmt-btn'+(f==='word'?' on':'');
 }
 
-function updateHint() {
-  document.getElementById('type-hint').innerHTML = HINTS[fhxType] || '';
-  // show/hide options irrelevant for state driven
-  var isSd = fhxType === 'em_sd';
-  document.getElementById('row-trans').className = 'opt-row' + (isSd ? ' hidden' : '');
-  document.getElementById('row-expr').className  = 'opt-row' + (isSd ? ' hidden' : '');
-  // stat labels
-  var labels = fhxType==='em_sd'
-    ? ['EM(s)','States','Devices']
-    : fhxType==='em_cd'
-    ? ['Commands','Steps','Actions']
-    : ['Blocks','Steps','Actions'];
-  document.getElementById('sAL').textContent = labels[0];
-  document.getElementById('sBL').textContent = labels[1];
-  document.getElementById('sCL').textContent = labels[2];
-  // terminal label
-  var names = {phase:'phase', em_cd:'cmd-driven EM', em_sd:'state-driven EM'};
-  document.getElementById('termLbl').textContent = 'fhx-parser · ' + (names[fhxType]||fhxType) + ' · log';
-  // reset results
-  document.getElementById('resultBar').className = 'result-bar';
-  resultBlob = null;
-  document.getElementById('sA').textContent = '—';
-  document.getElementById('sB').textContent = '—';
-  document.getElementById('sC').textContent = '—';
+// ─── COLUMNS ─────────────────────────────────────────────────────────────────
+function toggleCol(el) {
+  el.classList.toggle('on');
+  el.querySelector('.ck').textContent = el.classList.contains('on') ? '✓' : '○';
+}
+function getColumns() {
+  var fixed = ['step','description','action'];
+  var sel   = [];
+  document.querySelectorAll('.col-chip[data-col].on').forEach(function(el){
+    sel.push(el.dataset.col);
+  });
+  return fixed.concat(sel).join(',');
 }
 
-// ─── file input ───────────────────────────────────────────────────────────────
+// ─── FILES ────────────────────────────────────────────────────────────────────
 var dropLabel = document.getElementById('dropLabel');
 var fileInput  = document.getElementById('fileInput');
 
-// Drag and drop on the label
-dropLabel.addEventListener('dragover', function(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  dropLabel.classList.add('over');
+dropLabel.addEventListener('dragover', function(e){ e.preventDefault(); dropLabel.classList.add('over'); });
+dropLabel.addEventListener('dragleave', function(){ dropLabel.classList.remove('over'); });
+dropLabel.addEventListener('drop', function(e){
+  e.preventDefault(); dropLabel.classList.remove('over');
+  addFiles(e.dataTransfer.files);
 });
-dropLabel.addEventListener('dragleave', function(e) {
-  e.preventDefault();
-  dropLabel.classList.remove('over');
+fileInput.addEventListener('change', function(e){
+  addFiles(e.target.files);
+  // don't reset — keep file accessible
 });
-dropLabel.addEventListener('drop', function(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  dropLabel.classList.remove('over');
-  var files = e.dataTransfer.files;
-  if (files && files.length > 0) {
-    setFile(files[0]);
+
+function fmtSz(b){ return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB'; }
+
+function addFiles(fileList) {
+  if (!fileList || !fileList.length) return;
+  var arr = Array.from(fileList);
+  if (mode==='single') arr = [arr[0]]; // only first file in single mode
+  arr.forEach(function(f){
+    if (fileMap[f.name]) return; // skip duplicates
+    fileMap[f.name] = { file: f, type: null };
+    renderFileItem(f.name, 'detecting', '…');
+    // Auto-detect via server
+    var fd = new FormData();
+    fd.append('file', f, f.name);
+    fetch('/detect', {method:'POST', body:fd})
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        var t = data.type || 'phase';
+        fileMap[f.name].type    = t;
+        fileMap[f.name].stats   = data;
+        // In single mode: update type selector
+        if (mode==='single') {
+          applyDetected(t);
+          document.getElementById('sA').textContent = data.fb_count || data.commands && data.commands.length || 1;
+          document.getElementById('sB').textContent = data.steps || '—';
+          document.getElementById('sC').textContent = data.actions || '—';
+        } else {
+          document.getElementById('sA').textContent = Object.keys(fileMap).length;
+        }
+        updateFileItem(f.name, t, fmtSz(f.size));
+        checkReady();
+      })
+      .catch(function(){
+        fileMap[f.name].type = mode==='single' ? fhxType : 'phase';
+        updateFileItem(f.name, fileMap[f.name].type, fmtSz(f.size));
+        checkReady();
+      });
+  });
+}
+
+function applyDetected(t) {
+  fhxType = t;
+  var lbl = document.getElementById('auto-lbl');
+  lbl.innerHTML = '<span class="auto-badge '+t+'">AUTO: '+(t==='phase'?'PHASE':t==='em_cd'?'CMD EM':'STATE EM')+'</span>';
+  if (t === 'phase') {
+    document.getElementById('btn-phase').className = 'tbtn tp';
+    document.getElementById('btn-em').className    = 'tbtn';
+    document.getElementById('em-subs').style.display = 'none';
+  } else {
+    document.getElementById('btn-phase').className = 'tbtn';
+    document.getElementById('btn-em').className    = 'tbtn te';
+    document.getElementById('em-subs').style.display = 'grid';
+    document.getElementById('sub-cd').className = 'sbtn'+(t==='em_cd'?' sc':'');
+    document.getElementById('sub-sd').className = 'sbtn'+(t==='em_sd'?' ss':'');
   }
-});
-
-// File input change
-fileInput.addEventListener('change', function(e) {
-  if (e.target.files && e.target.files.length > 0) {
-    setFile(e.target.files[0]);
-  }
-});
-
-function fmtSize(b) {
-  return b < 1048576 ? (b/1024).toFixed(1)+' KB' : (b/1048576).toFixed(2)+' MB';
+  updateTypeUI();
 }
 
-function setFile(f) {
-  selFile = f;
-  document.getElementById('fiName').textContent = f.name;
-  document.getElementById('fiMeta').textContent = fmtSize(f.size);
-  document.getElementById('fileInfo').className = 'file-info show';
-  document.getElementById('runBtn').disabled = false;
-  document.getElementById('resultBar').className = 'result-bar';
-  resultBlob = null;
-  document.getElementById('logEl').innerHTML = '';
-  t0 = null;
-  setBadge('idle');
-  setProgress(0);
-  addLog('File: ' + f.name + '  (' + fmtSize(f.size) + ')', 'ok');
-  addLog('Click PROCESS FILE to convert.', 'dim');
+function renderFileItem(name, typeOrState, meta) {
+  var list = document.getElementById('fileList');
+  var div  = document.createElement('div');
+  div.id   = 'fi-' + name.replace(/[^a-z0-9]/gi,'_');
+  div.className = 'fitem detecting';
+  div.innerHTML =
+    '<div class="fi-name" title="'+name+'">'+name+'</div>'+
+    '<div class="fi-badge" style="background:var(--dim);color:var(--muted)">'+meta+'</div>'+
+    '<button class="fi-rm" onclick="removeFile(\''+name+'\')">✕</button>';
+  list.appendChild(div);
 }
 
-function clearFile() {
-  selFile = null;
-  fileInput.value = '';
-  document.getElementById('fileInfo').className = 'file-info';
-  document.getElementById('runBtn').disabled = true;
-  document.getElementById('resultBar').className = 'result-bar';
-  resultBlob = null;
+var TYPE_COLORS = {phase:'rgba(0,212,255,.15)',em_cd:'rgba(255,107,53,.15)',em_sd:'rgba(206,147,216,.15)'};
+var TYPE_TC     = {phase:'var(--accent)',em_cd:'var(--orange)',em_sd:'var(--purple)'};
+var TYPE_LABEL  = {phase:'PHASE',em_cd:'CMD EM',em_sd:'STATE EM'};
+
+function updateFileItem(name, type, meta) {
+  var id  = 'fi-' + name.replace(/[^a-z0-9]/gi,'_');
+  var div = document.getElementById(id);
+  if (!div) return;
+  div.className = 'fitem';
+  div.querySelector('.fi-badge').style.background = TYPE_COLORS[type]||'';
+  div.querySelector('.fi-badge').style.color      = TYPE_TC[type]||'var(--text)';
+  div.querySelector('.fi-badge').textContent       = (TYPE_LABEL[type]||type.toUpperCase())+' · '+meta;
 }
 
-// ─── logging ──────────────────────────────────────────────────────────────────
+function removeFile(name) {
+  delete fileMap[name];
+  var id  = 'fi-' + name.replace(/[^a-z0-9]/gi,'_');
+  var el  = document.getElementById(id);
+  if (el) el.remove();
+  document.getElementById('sA').textContent = Object.keys(fileMap).length || '—';
+  checkReady();
+}
+
+function clearFiles() {
+  fileMap = {};
+  document.getElementById('fileList').innerHTML = '';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('sA').textContent = '—';
+  document.getElementById('sB').textContent = '—';
+  document.getElementById('sC').textContent = '—';
+  document.getElementById('auto-lbl').innerHTML = '';
+  checkReady();
+}
+
+function checkReady() {
+  var hasFiles = Object.keys(fileMap).length > 0;
+  var allDone  = hasFiles && Object.values(fileMap).every(function(f){ return f.type; });
+  document.getElementById('runBtn').disabled = !allDone;
+}
+
+// ─── LOGGING ──────────────────────────────────────────────────────────────────
 function ts() {
   if (!t0) return '--:--';
-  var d = Date.now() - t0;
-  return ('0'+Math.floor(d/60000)).slice(-2) + ':' +
-         ('0'+Math.floor(d/1000)%60).slice(-2) + '.' +
-         ('00'+d%1000).slice(-3);
+  var d = Date.now()-t0;
+  return ('0'+Math.floor(d/60000)).slice(-2)+':'+('0'+Math.floor(d/1000)%60).slice(-2)+'.'+('00'+d%1000).slice(-3);
 }
-function addLog(msg, cls) {
+function lg(msg, cls) {
   var el = document.getElementById('logEl');
-  var row = document.createElement('div');
-  row.className = 'row ' + (cls||'dim');
-  row.innerHTML = '<span class="t">'+ts()+'</span><span class="m">'+msg+'</span>';
-  el.appendChild(row);
-  el.scrollTop = el.scrollHeight;
+  var r  = document.createElement('div');
+  r.className = 'lrow '+(cls||'dim');
+  r.innerHTML = '<span class="lt">'+ts()+'</span><span class="lm">'+msg+'</span>';
+  el.appendChild(r); el.scrollTop = el.scrollHeight;
 }
-function setProgress(p) { document.getElementById('progFill').style.width = p + '%'; }
+function setProg(p) { document.getElementById('progFill').style.width=p+'%'; }
 function setBadge(s) {
   var el = document.getElementById('badge');
-  var map = {idle:'IDLE', run:'RUNNING', done:'DONE', err:'ERROR'};
-  el.className = 'badge' + (s==='run'?' run':s==='done'?' done':s==='err'?' err':'');
-  el.textContent = map[s] || s.toUpperCase();
+  var m  = {idle:'IDLE',run:'RUNNING',done:'DONE',err:'ERROR'};
+  el.className = 'badge'+(s==='run'?' run':s==='done'?' done':s==='err'?' err':'');
+  el.textContent = m[s]||s.toUpperCase();
 }
 function optOn(id) { return document.getElementById(id).classList.contains('on'); }
 
-// ─── conversion ───────────────────────────────────────────────────────────────
-function runConversion() {
-  if (!selFile) { addLog('No file selected.', 'err'); return; }
-  if (fhxType === 'em_fb') { addLog('Function Block EM coming soon.', 'warn'); return; }
+// ─── RUN ──────────────────────────────────────────────────────────────────────
+function run() {
+  var files = Object.values(fileMap);
+  if (!files.length) return;
 
   t0 = Date.now();
   document.getElementById('logEl').innerHTML = '';
   document.getElementById('pillsEl').innerHTML = '';
-  document.getElementById('resultBar').className = 'result-bar';
-  document.getElementById('sA').textContent = '—';
-  document.getElementById('sB').textContent = '—';
-  document.getElementById('sC').textContent = '—';
-  resultBlob = null;
+  document.getElementById('resBar').className = 'res-bar';
+  document.getElementById('dlBtns').innerHTML = '';
+  resultBlob = null; resultBlobs = {};
 
   var btn = document.getElementById('runBtn');
-  btn.disabled = true;
-  btn.className = 'run busy';
-  btn.textContent = '◼  PROCESSING…';
-  setBadge('run');
-  setProgress(10);
+  btn.disabled=true; btn.className='run-btn busy'; btn.textContent='◼  PROCESSING…';
+  setBadge('run'); setProg(5);
 
-  var typeNames = {phase:'PHASE', em_cd:'COMMAND DRIVEN EM', em_sd:'STATE DRIVEN EM'};
-  addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'head');
-  addLog('FHX → EXCEL  ·  ' + typeNames[fhxType] + '  ·  ' + new Date().toLocaleTimeString(), 'head');
-  addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'head');
-  addLog('File: ' + selFile.name + '  (' + fmtSize(selFile.size) + ')', 'ok');
-  addLog('Uploading to server…', 'step');
-  setProgress(25);
+  lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'head');
+  lg('FHX → '+(outFmt==='word'?'WORD DDS':'EXCEL')+' · '+(mode==='batch'?'BATCH':'SINGLE')+' · '+new Date().toLocaleTimeString(), 'head');
+  lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'head');
 
-  // Build form data — pass File object directly, no reading in browser
   var fd = new FormData();
-  fd.append('file',        selFile, selFile.name);
-  fd.append('fhx_type',   fhxType);
-  fd.append('transitions', optOn('tog-trans') ? 'true' : 'false');
-  fd.append('summary',     optOn('tog-summ')  ? 'true' : 'false');
-  fd.append('expressions', optOn('tog-expr')  ? 'true' : 'false');
+  files.forEach(function(item){ fd.append('files', item.file, item.file.name); });
+  fd.append('format',      outFmt);
+  fd.append('columns',     getColumns());
+  fd.append('transitions', optOn('tog-trans')?'true':'false');
+  fd.append('summary',     optOn('tog-summ')?'true':'false');
+  fd.append('expressions', 'true');
 
-  fetch('/convert', { method: 'POST', body: fd })
-    .then(function(resp) {
-      setProgress(80);
-      addLog('Server responded — reading workbook…', 'dim');
-
-      // Sheet names from header
-      var sheetHeader = resp.headers.get('X-Sheet-Names');
-      if (sheetHeader) {
-        var pillsEl = document.getElementById('pillsEl');
-        sheetHeader.split('|').forEach(function(name) {
-          name = name.trim();
-          var cls = name === 'SUMMARY' ? 'pill-z'
-                  : fhxType === 'phase' ? 'pill-p'
-                  : fhxType === 'em_cd' ? 'pill-c' : 'pill-s';
-          var p = document.createElement('div');
-          p.className = 'pill ' + cls;
-          p.innerHTML = '<div class="pd"></div>' + name;
-          pillsEl.appendChild(p);
-        });
-        var sheets = sheetHeader.split('|').filter(function(n){return n.trim()!=='SUMMARY';});
-        document.getElementById('sA').textContent = sheets.length;
-      }
-
-      if (!resp.ok) {
-        return resp.json().then(function(e){ throw new Error(e.error || 'Server error '+resp.status); });
-      }
-      return resp.blob();
-    })
-    .then(function(blob) {
-      resultBlob = blob;
-      resultName = selFile.name.replace(/\.fhx$/i, '') + '_Logic.xlsx';
-      setProgress(100);
-      addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'head');
-      addLog('DONE  ·  elapsed ' + ts(), 'ok');
-      addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'head');
-      setBadge('done');
-      document.getElementById('resultBar').className = 'result-bar show';
-      resetBtn();
-    })
-    .catch(function(err) {
-      addLog('ERROR: ' + err.message, 'err');
-      setBadge('err');
-      setProgress(0);
-      resetBtn();
+  if (mode==='single' && files.length===1) {
+    var item = files[0];
+    fd.append('fhx_type', item.type||fhxType);
+    lg('File: '+item.file.name+'  ('+fmtSz(item.file.size)+')', 'ok');
+    lg('Type: '+(TYPE_LABEL[item.type]||item.type), 'dim');
+    lg('Format: '+(outFmt==='word'?'Word DDS (.docx)':'Excel (.xlsx)'), 'dim');
+    lg('Uploading to server…', 'step');
+    setProg(25);
+    // Single file — use /convert
+    var fd2 = new FormData();
+    fd2.append('file',        item.file, item.file.name);
+    fd2.append('fhx_type',   item.type||fhxType);
+    fd2.append('format',     outFmt);
+    fd2.append('columns',    getColumns());
+    fd2.append('transitions',optOn('tog-trans')?'true':'false');
+    fd2.append('summary',    optOn('tog-summ')?'true':'false');
+    fd2.append('expressions','true');
+    fetch('/convert',{method:'POST',body:fd2})
+      .then(handleSingleResponse)
+      .catch(handleError);
+  } else {
+    // Batch — use /batch
+    files.forEach(function(item){
+      lg('  · '+item.file.name+' ['+TYPE_LABEL[item.type]+']', 'dim');
     });
+    lg(files.length+' file(s) · uploading…', 'step');
+    setProg(20);
+    fetch('/batch',{method:'POST',body:fd})
+      .then(handleBatchResponse)
+      .catch(handleError);
+  }
+}
+
+function handleSingleResponse(resp) {
+  setProg(80);
+  lg('Server responded…', 'dim');
+  var sheetHdr = resp.headers.get('X-Sheet-Names');
+  if (sheetHdr) {
+    var pEl = document.getElementById('pillsEl');
+    sheetHdr.split('|').forEach(function(name){
+      name = name.trim();
+      var cls = name==='SUMMARY'?'pz':fhxType==='phase'?'pp':fhxType==='em_cd'?'pc':'ps';
+      var p = document.createElement('div');
+      p.className='pill '+cls;
+      p.innerHTML='<div class="pd"></div>'+name;
+      pEl.appendChild(p);
+    });
+  }
+  if (!resp.ok) {
+    return resp.json().then(function(e){ throw new Error(e.error||'Server error '+resp.status); });
+  }
+  return resp.blob().then(function(blob){
+    resultBlob = blob;
+    var isWord  = outFmt==='word';
+    resultName  = Object.keys(fileMap)[0].replace(/\.fhx$/i,'') + (isWord?'_DDS.docx':'_Logic.xlsx');
+    setProg(100);
+    lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'head');
+    lg('DONE  ·  elapsed '+ts(), 'ok');
+    lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'head');
+    setBadge('done');
+    document.getElementById('resTtl').textContent = isWord ? 'Word DDS ready' : 'Excel workbook ready';
+    var btns = document.getElementById('dlBtns');
+    var b1 = document.createElement('button');
+    b1.className = 'dl-btn'+(isWord?' word':'');
+    b1.innerHTML = '⬇  Download '+(isWord?'Word DDS':'Excel');
+    b1.onclick = function(){ downloadBlob(resultBlob, resultName); };
+    btns.appendChild(b1);
+    document.getElementById('resBar').className = 'res-bar show';
+    resetBtn();
+  });
+}
+
+function handleBatchResponse(resp) {
+  setProg(85);
+  var count  = resp.headers.get('X-Batch-Count')||'?';
+  var errs   = resp.headers.get('X-Batch-Errors')||'0';
+  var names  = (resp.headers.get('X-Batch-Names')||'').split('|').filter(Boolean);
+  lg(count+' file(s) processed, '+errs+' error(s)', parseInt(errs)>0?'warn':'ok');
+  names.forEach(function(n){ lg('  ✓ '+n, 'dim'); });
+  if (!resp.ok) {
+    return resp.json().then(function(e){ throw new Error(e.error||'Server error '+resp.status); });
+  }
+  return resp.blob().then(function(blob){
+    resultBlob = blob;
+    var isWord  = outFmt==='word';
+    resultName  = 'FHX_Batch_'+(new Date().toISOString().slice(0,10))+(isWord?'.zip':'.xlsx');
+    setProg(100);
+    lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'head');
+    lg('BATCH DONE  ·  elapsed '+ts(), 'ok');
+    lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'head');
+    setBadge('done');
+    document.getElementById('resTtl').textContent = 'Batch output ready ('+count+' files)';
+    var btns = document.getElementById('dlBtns');
+    var b = document.createElement('button');
+    b.className = 'dl-btn'+(isWord?' word':'');
+    b.innerHTML = '⬇  Download '+(isWord?'ZIP (Word files)':'Combined Excel');
+    b.onclick = function(){ downloadBlob(resultBlob, resultName); };
+    btns.appendChild(b);
+    document.getElementById('resBar').className = 'res-bar show';
+    resetBtn();
+  });
+}
+
+function handleError(err) {
+  lg('ERROR: '+err.message, 'err');
+  setBadge('err'); setProg(0); resetBtn();
 }
 
 function resetBtn() {
   var btn = document.getElementById('runBtn');
-  btn.disabled = false;
-  btn.className = 'run';
-  btn.textContent = '▶  PROCESS FILE';
+  btn.disabled=false; btn.className='run-btn'; btn.textContent='▶  PROCESS';
 }
 
-function downloadResult() {
-  if (!resultBlob) return;
+function downloadBlob(blob, name) {
   var a = document.createElement('a');
-  a.href = URL.createObjectURL(resultBlob);
-  a.download = resultName;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(a.href);
-  addLog('Downloaded: ' + resultName, 'ok');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(a.href);
+  lg('Downloaded: '+name, 'ok');
 }
 </script>
 </body>

@@ -613,6 +613,515 @@ def build_sdem_excel(em_list, fname, opts):
     return buf
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# AUTO-DETECT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def detect_fhx_type(text):
+    """Return 'phase', 'em_cd', or 'em_sd' by inspecting the FHX structure."""
+    if 'STATE_DRIVEN_ALGORITHM' in text:
+        return 'em_sd'
+    if 'COMMAND_DRIVEN_ALGORITHM' in text:
+        return 'em_cd'
+    return 'phase'
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# DDS WORD BUILDER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+from docx import Document
+from docx.shared import Pt, Cm, RGBColor, Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.oxml.ns import qn
+from docx.oxml import OxmlElement
+import datetime
+
+def _set_cell_bg(cell, hex_color):
+    tc = cell._tc
+    tcPr = tc.get_or_add_tcPr()
+    shd = OxmlElement('w:shd')
+    shd.set(qn('w:val'), 'clear')
+    shd.set(qn('w:color'), 'auto')
+    shd.set(qn('w:fill'), hex_color)
+    tcPr.append(shd)
+
+def _set_col_width(table, col_idx, width_cm):
+    for row in table.rows:
+        row.cells[col_idx].width = Cm(width_cm)
+
+def build_dds_word(parsed_data, fhx_type, fname, opts):
+    """
+    Generate a pharma/biotech-style Design Description Specification (DDS)
+    Word document from parsed FHX data.
+    """
+    doc = Document()
+
+    # ── Page margins ──────────────────────────────────────────────────────────
+    for section in doc.sections:
+        section.top_margin    = Cm(2.5)
+        section.bottom_margin = Cm(2.5)
+        section.left_margin   = Cm(2.5)
+        section.right_margin  = Cm(2.5)
+
+    # ── Styles ────────────────────────────────────────────────────────────────
+    styles = doc.styles
+    normal = styles['Normal']
+    normal.font.name = 'Calibri'
+    normal.font.size = Pt(10)
+
+    def add_heading(text, level=1, color='1F3864'):
+        p = doc.add_heading(text, level=level)
+        p.runs[0].font.color.rgb = RGBColor.from_string(color)
+        p.runs[0].font.name = 'Calibri'
+        return p
+
+    def add_para(text='', bold=False, italic=False, size=10, color=None):
+        p = doc.add_paragraph()
+        run = p.add_run(text)
+        run.font.name = 'Calibri'
+        run.font.size = Pt(size)
+        run.font.bold = bold
+        run.font.italic = italic
+        if color:
+            run.font.color.rgb = RGBColor.from_string(color)
+        return p
+
+    def add_table_row(table, cells, bold=False, bg=None, font_size=9):
+        row = table.add_row()
+        for i, val in enumerate(cells):
+            cell = row.cells[i]
+            cell.text = str(val) if val else ''
+            for para in cell.paragraphs:
+                for run in para.runs:
+                    run.font.name = 'Calibri'
+                    run.font.size = Pt(font_size)
+                    run.font.bold = bold
+            if bg:
+                _set_cell_bg(cell, bg)
+        return row
+
+    cols = opts.get('columns', ['step','description','action','qualifier',
+                                'expression','delay','confirm_expression'])
+
+    # ── COVER PAGE ────────────────────────────────────────────────────────────
+    doc.add_paragraph()
+    title_p = doc.add_paragraph()
+    title_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = title_p.add_run('DESIGN DESCRIPTION SPECIFICATION')
+    run.font.name = 'Calibri'; run.font.size = Pt(20)
+    run.font.bold = True
+    run.font.color.rgb = RGBColor.from_string('1F3864')
+
+    sub_p = doc.add_paragraph()
+    sub_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run2 = sub_p.add_run(fname)
+    run2.font.name = 'Calibri'; run2.font.size = Pt(14)
+    run2.font.color.rgb = RGBColor.from_string('2E75B6')
+
+    doc.add_paragraph()
+    type_map = {'phase':'Phase Logic','em_cd':'Command Driven Equipment Module','em_sd':'State Driven Equipment Module'}
+    type_p = doc.add_paragraph()
+    type_p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run3 = type_p.add_run(type_map.get(fhx_type, fhx_type))
+    run3.font.name = 'Calibri'; run3.font.size = Pt(12)
+    run3.font.italic = True
+    run3.font.color.rgb = RGBColor.from_string('666666')
+
+    doc.add_paragraph()
+
+    # Cover table
+    cover_tbl = doc.add_table(rows=0, cols=2)
+    cover_tbl.style = 'Table Grid'
+    for label, val in [
+        ('Document Number', fname + '-DDS-001'),
+        ('System / Module', fname),
+        ('Document Type', 'Design Description Specification'),
+        ('DeltaV Export Type', type_map.get(fhx_type, fhx_type)),
+        ('Generated', datetime.datetime.now().strftime('%d-%b-%Y %H:%M')),
+        ('Status', 'DRAFT'),
+        ('Revision', '0.1'),
+    ]:
+        row = cover_tbl.add_row()
+        row.cells[0].text = label
+        row.cells[1].text = val
+        for para in row.cells[0].paragraphs:
+            for run in para.runs:
+                run.font.bold = True; run.font.name='Calibri'; run.font.size=Pt(10)
+        for para in row.cells[1].paragraphs:
+            for run in para.runs:
+                run.font.name='Calibri'; run.font.size=Pt(10)
+        _set_cell_bg(row.cells[0], 'D9E1F2')
+    cover_tbl.columns[0].width = Cm(6)
+    cover_tbl.columns[1].width = Cm(10)
+
+    doc.add_page_break()
+
+    # ── SECTION 1 — PURPOSE & SCOPE ───────────────────────────────────────────
+    add_heading('1. Purpose and Scope', 1)
+    add_para(
+        f'This Design Description Specification (DDS) describes the control logic '
+        f'for {fname}, as exported from the DeltaV Distributed Control System. '
+        f'This document is intended to support validation activities (IQ/OQ/PQ), '
+        f'change control review, and code review in accordance with 21 CFR Part 11 '
+        f'and GAMP 5 guidelines.'
+    )
+    doc.add_paragraph()
+    add_heading('1.1 Document Scope', 2)
+    if fhx_type == 'phase':
+        add_para('This document covers the Sequential Function Chart (SFC) logic for all phase '
+                 'states including RUNNING, ABORTING, HOLDING, RESTARTING and STOPPING logic blocks.')
+    elif fhx_type == 'em_cd':
+        add_para('This document covers the Command Driven Equipment Module logic, describing '
+                 'each command\'s sequential steps, actions, and transition conditions.')
+    else:
+        add_para('This document covers the State Driven Equipment Module logic, describing '
+                 'each configured state and the corresponding device output positions.')
+
+    doc.add_page_break()
+
+    # ── SECTION 2 — REVISION HISTORY ─────────────────────────────────────────
+    add_heading('2. Revision History', 1)
+    rev_tbl = doc.add_table(rows=0, cols=4)
+    rev_tbl.style = 'Table Grid'
+    hrow = rev_tbl.add_row()
+    for i, h in enumerate(['Rev', 'Date', 'Author', 'Description of Change']):
+        hrow.cells[i].text = h
+        _set_cell_bg(hrow.cells[i], '1F3864')
+        for para in hrow.cells[i].paragraphs:
+            for run in para.runs:
+                run.font.bold=True; run.font.name='Calibri'
+                run.font.size=Pt(10); run.font.color.rgb=RGBColor.from_string('FFFFFF')
+    drow = rev_tbl.add_row()
+    drow.cells[0].text = '0.1'
+    drow.cells[1].text = datetime.datetime.now().strftime('%d-%b-%Y')
+    drow.cells[2].text = 'Auto-generated'
+    drow.cells[3].text = 'Initial draft generated from DeltaV FHX export'
+    for cell in drow.cells:
+        for para in cell.paragraphs:
+            for run in para.runs:
+                run.font.name='Calibri'; run.font.size=Pt(10)
+
+    doc.add_page_break()
+
+    # ── SECTION 3 — OVERVIEW ──────────────────────────────────────────────────
+    add_heading('3. Logic Overview', 1)
+
+    if fhx_type == 'phase':
+        blocks = parsed_data
+        add_para(f'This phase contains {len(blocks)} logic block(s). '
+                 f'Each block corresponds to a phase state or supporting function.')
+        doc.add_paragraph()
+        ov_tbl = doc.add_table(rows=0, cols=4)
+        ov_tbl.style = 'Table Grid'
+        hr = ov_tbl.add_row()
+        for i, h in enumerate(['Logic Block','Description','Steps','Actions']):
+            hr.cells[i].text = h
+            _set_cell_bg(hr.cells[i], '1F3864')
+            for para in hr.cells[i].paragraphs:
+                for run in para.runs:
+                    run.font.bold=True; run.font.name='Calibri'
+                    run.font.size=Pt(10); run.font.color.rgb=RGBColor.from_string('FFFFFF')
+        for i, (fb, data) in enumerate(blocks.items()):
+            acts = sum(len(s[1]['actions']) for s in data['ordered_steps'])
+            lbl  = derive_phase_label(fb, data.get('instance_name',''),
+                                      data.get('description',''), set())
+            dr = ov_tbl.add_row()
+            dr.cells[0].text = lbl
+            dr.cells[1].text = data.get('description','')
+            dr.cells[2].text = str(len(data['ordered_steps']))
+            dr.cells[3].text = str(acts)
+            bg = 'D9E1F2' if i%2==0 else 'FFFFFF'
+            for cell in dr.cells:
+                _set_cell_bg(cell, bg)
+                for para in cell.paragraphs:
+                    for run in para.runs:
+                        run.font.name='Calibri'; run.font.size=Pt(10)
+
+    elif fhx_type == 'em_cd':
+        commands = parsed_data
+        add_para(f'This Command Driven EM contains {len(commands)} command(s).')
+        doc.add_paragraph()
+        ov_tbl = doc.add_table(rows=0, cols=4)
+        ov_tbl.style = 'Table Grid'
+        hr = ov_tbl.add_row()
+        for i, h in enumerate(['Command','Description','Steps','Actions']):
+            hr.cells[i].text = h
+            _set_cell_bg(hr.cells[i], '1F3864')
+            for para in hr.cells[i].paragraphs:
+                for run in para.runs:
+                    run.font.bold=True; run.font.name='Calibri'
+                    run.font.size=Pt(10); run.font.color.rgb=RGBColor.from_string('FFFFFF')
+        for i, cmd in enumerate(commands):
+            acts = sum(len(s[1]['actions']) for s in cmd['ordered_steps'])
+            dr = ov_tbl.add_row()
+            dr.cells[0].text = cmd['command_name']
+            dr.cells[1].text = cmd.get('fb_description','')
+            dr.cells[2].text = str(len(cmd['ordered_steps']))
+            dr.cells[3].text = str(acts)
+            bg = 'D9E1F2' if i%2==0 else 'FFFFFF'
+            for cell in dr.cells:
+                _set_cell_bg(cell, bg)
+                for para in cell.paragraphs:
+                    for run in para.runs:
+                        run.font.name='Calibri'; run.font.size=Pt(10)
+
+    else:  # em_sd
+        em_list = parsed_data
+        for em in em_list:
+            add_para(f'EM: {em["em_name"]} — {em["em_description"]}')
+            add_para(f'Devices: {len(em["devices"])}   States: {len(em["states"])}')
+
+    doc.add_page_break()
+
+    # ── SECTION 4 — DETAILED LOGIC ────────────────────────────────────────────
+    add_heading('4. Detailed Logic Description', 1)
+
+    FIXED_COLS   = ['step', 'description', 'action']
+    ALL_COLS     = ['step','description','action','qualifier',
+                    'expression','delay','delay_expression',
+                    'confirm_expression','confirm_timeout']
+    COL_LABELS   = {
+        'step': 'Step', 'description': 'Description', 'action': 'Action ID',
+        'qualifier': 'Qualifier', 'expression': 'Expression',
+        'delay': 'Delay', 'delay_expression': 'Delay Expression',
+        'confirm_expression': 'Confirm Expression', 'confirm_timeout': 'Confirm Timeout'
+    }
+    # Only include selected columns (always keep fixed 3)
+    sel_cols = FIXED_COLS + [c for c in cols if c not in FIXED_COLS and c in ALL_COLS]
+
+    # Column widths in cm (total page width ~16cm)
+    COL_W_MAP = {
+        'step':4.0,'description':4.5,'action':2.5,'qualifier':1.8,
+        'expression':5.5,'delay':1.8,'delay_expression':3.5,
+        'confirm_expression':3.5,'confirm_timeout':2.0
+    }
+    # Scale widths to fit
+    total_w = sum(COL_W_MAP[c] for c in sel_cols)
+    scale   = 15.5 / total_w
+
+    def make_logic_table():
+        tbl = doc.add_table(rows=0, cols=len(sel_cols))
+        tbl.style = 'Table Grid'
+        hr  = tbl.add_row()
+        for i, col in enumerate(sel_cols):
+            hr.cells[i].text = COL_LABELS[col]
+            _set_cell_bg(hr.cells[i], '1F3864')
+            for para in hr.cells[i].paragraphs:
+                for run in para.runs:
+                    run.font.bold=True; run.font.name='Calibri'
+                    run.font.size=Pt(9); run.font.color.rgb=RGBColor.from_string('FFFFFF')
+            hr.cells[i].width = Cm(COL_W_MAP[col] * scale)
+        return tbl
+
+    def add_step_header_row(tbl, step_num, step_name, action_count):
+        row = tbl.add_row()
+        for ci in range(len(sel_cols)):
+            _set_cell_bg(row.cells[ci], '2E75B6')
+        merged = row.cells[0]
+        for ci in range(1, len(sel_cols)):
+            merged = merged.merge(row.cells[ci])
+        merged.text = f'  STEP {step_num}:  {step_name}   ({action_count} actions)'
+        for para in merged.paragraphs:
+            for run in para.runs:
+                run.font.bold=True; run.font.name='Calibri'
+                run.font.size=Pt(9); run.font.color.rgb=RGBColor.from_string('FFFFFF')
+
+    def add_action_row(tbl, step_name, action, alt):
+        row = tbl.add_row()
+        bg  = 'D9E1F2' if alt else 'FFFFFF'
+        vals = {
+            'step': step_name,
+            'description': action.get('description',''),
+            'action': action.get('action',''),
+            'qualifier': action.get('qualifier',''),
+            'expression': action.get('expression',''),
+            'delay': action.get('delay_time',''),
+            'delay_expression': action.get('delay_expression',''),
+            'confirm_expression': action.get('confirm_expression',''),
+            'confirm_timeout': action.get('confirm_timeout',''),
+        }
+        for i, col in enumerate(sel_cols):
+            row.cells[i].text = vals.get(col,'')
+            _set_cell_bg(row.cells[i], bg)
+            for para in row.cells[i].paragraphs:
+                for run in para.runs:
+                    run.font.name='Calibri'; run.font.size=Pt(9)
+            row.cells[i].width = Cm(COL_W_MAP[col] * scale)
+
+    def add_transition_header(tbl, step_name, count):
+        row = tbl.add_row()
+        for ci in range(len(sel_cols)):
+            _set_cell_bg(row.cells[ci], '4E7F2C')
+        merged = row.cells[0]
+        for ci in range(1, len(sel_cols)):
+            merged = merged.merge(row.cells[ci])
+        merged.text = f'  ↓  TRANSITIONS FROM  {step_name}  ({count})'
+        for para in merged.paragraphs:
+            for run in para.runs:
+                run.font.bold=True; run.font.name='Calibri'
+                run.font.size=Pt(8); run.font.color.rgb=RGBColor.from_string('FFFFFF')
+
+    def add_transition_row(tbl, trans_name, trans, alt):
+        row = tbl.add_row()
+        bg  = 'E2EFDA' if alt else 'F2F9EE'
+        vals = {
+            'step': trans_name,
+            'description': trans.get('description',''),
+            'action': '→ NEXT' if trans.get('termination')!='T' else '⏹ END',
+            'qualifier': '',
+            'expression': trans.get('expression',''),
+            'delay':'','delay_expression':'',
+            'confirm_expression':'','confirm_timeout':'',
+        }
+        for i, col in enumerate(sel_cols):
+            row.cells[i].text = vals.get(col,'')
+            _set_cell_bg(row.cells[i], bg)
+            for para in row.cells[i].paragraphs:
+                for run in para.runs:
+                    run.font.name='Calibri'; run.font.size=Pt(9)
+                    run.font.italic = (col=='expression')
+
+    def write_sfc_section(data, section_title):
+        add_heading(section_title, 2)
+        tbl = make_logic_table()
+        for si, (sn, sd) in enumerate(data['ordered_steps']):
+            add_step_header_row(tbl, si+1, sn, len(sd['actions']))
+            for ai, a in enumerate(sd['actions']):
+                add_action_row(tbl, sn, a, ai%2==0)
+            if opts.get('transitions', True):
+                tl = data['step_to_trans'].get(sn, [])
+                if tl:
+                    add_transition_header(tbl, sn, len(tl))
+                    for ti, tn in enumerate(tl):
+                        add_transition_row(tbl, tn, data['transitions'][tn], ti%2==0)
+        doc.add_paragraph()
+
+    # Write detailed sections per type
+    if fhx_type == 'phase':
+        used = set()
+        for fb, data in parsed_data.items():
+            lbl = derive_phase_label(fb, data.get('instance_name',''),
+                                     data.get('description',''), used)
+            write_sfc_section(data, f'4.{list(parsed_data.keys()).index(fb)+1}  {lbl}')
+            doc.add_paragraph()
+
+    elif fhx_type == 'em_cd':
+        for ci, cmd in enumerate(parsed_data):
+            write_sfc_section(cmd, f'4.{ci+1}  Command: {cmd["command_name"]}')
+            doc.add_paragraph()
+
+    else:  # em_sd — state table
+        for em in parsed_data:
+            add_heading(f'4.1  {em["em_name"]} — State Table', 2)
+            devices = em['devices']
+            n_cols  = 3 + len(devices)
+            sd_tbl  = doc.add_table(rows=0, cols=n_cols)
+            sd_tbl.style = 'Table Grid'
+            hr = sd_tbl.add_row()
+            for i, h in enumerate(['#','State Name','Enabled'] + devices):
+                hr.cells[i].text = h
+                _set_cell_bg(hr.cells[i], '1F3864' if i < 3 else '7B3F00')
+                for para in hr.cells[i].paragraphs:
+                    for run in para.runs:
+                        run.font.bold=True; run.font.name='Calibri'
+                        run.font.size=Pt(9); run.font.color.rgb=RGBColor.from_string('FFFFFF')
+            for ri, state in enumerate(em['states']):
+                row = sd_tbl.add_row()
+                row.cells[0].text = str(state['index'])
+                row.cells[1].text = state['state_name']
+                row.cells[2].text = 'Yes' if state['enabled'] else 'No'
+                bg_base = 'F2F2F2' if ri%2==0 else 'FFFFFF'
+                _set_cell_bg(row.cells[0], bg_base)
+                _set_cell_bg(row.cells[1], bg_base)
+                _set_cell_bg(row.cells[2], bg_base)
+                for di, dev in enumerate(devices):
+                    val = state['values'].get(dev,'')
+                    dc  = state['dont_care'].get(dev, False)
+                    row.cells[3+di].text = '—' if dc else val
+                    bg = 'FFFFCC' if dc else ('C6EFCE' if val.upper()=='OPEN'
+                         else 'FFCCCC' if val.upper()=='CLOSE' else bg_base)
+                    _set_cell_bg(row.cells[3+di], bg)
+                    for para in row.cells[3+di].paragraphs:
+                        for run in para.runs:
+                            run.font.name='Calibri'; run.font.size=Pt(9)
+                for ci2 in range(3):
+                    for para in row.cells[ci2].paragraphs:
+                        for run in para.runs:
+                            run.font.name='Calibri'; run.font.size=Pt(9)
+
+    doc.add_page_break()
+
+    # ── SECTION 5 — SIGN-OFF ──────────────────────────────────────────────────
+    add_heading('5. Review and Approval', 1)
+    add_para('This document requires review and approval before use in a GxP context.')
+    doc.add_paragraph()
+    sig_tbl = doc.add_table(rows=0, cols=4)
+    sig_tbl.style = 'Table Grid'
+    hr = sig_tbl.add_row()
+    for i, h in enumerate(['Role','Name','Signature','Date']):
+        hr.cells[i].text = h
+        _set_cell_bg(hr.cells[i], '1F3864')
+        for para in hr.cells[i].paragraphs:
+            for run in para.runs:
+                run.font.bold=True; run.font.name='Calibri'
+                run.font.size=Pt(10); run.font.color.rgb=RGBColor.from_string('FFFFFF')
+    for role in ['Author','Technical Reviewer','Quality Reviewer','Approver']:
+        row = sig_tbl.add_row()
+        row.cells[0].text = role
+        for para in row.cells[0].paragraphs:
+            for run in para.runs:
+                run.font.name='Calibri'; run.font.size=Pt(10)
+        for c in [1,2,3]:
+            for para in row.cells[c].paragraphs:
+                para.add_run('  ')
+
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SHARED PARSE HELPER
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def parse_and_build(text, fhx_type, fname, opts, output_format='excel'):
+    """Parse text and build output. Returns (buf, sheet_names_or_none)."""
+    if fhx_type == 'phase':
+        data = parse_phase_fhx(text)
+        if not data:
+            raise ValueError('No phase logic blocks found. Is this a Phase FHX?')
+        if output_format == 'word':
+            return build_dds_word(data, fhx_type, fname, opts), None
+        buf = build_phase_excel(data, fname, opts)
+
+    elif fhx_type == 'em_cd':
+        data = parse_cdem_fhx(text)
+        if not data:
+            raise ValueError('No COMMAND_DRIVEN_ALGORITHM found.')
+        if output_format == 'word':
+            return build_dds_word(data, fhx_type, fname, opts), None
+        buf = build_cdem_excel(data, fname, opts)
+
+    elif fhx_type == 'em_sd':
+        data = parse_sdem_fhx(text)
+        if not data:
+            raise ValueError('No STATE_DRIVEN_ALGORITHM found.')
+        if output_format == 'word':
+            return build_dds_word(data, fhx_type, fname, opts), None
+        buf = build_sdem_excel(data, fname, opts)
+
+    else:
+        raise ValueError(f'Unknown type: {fhx_type}')
+
+    # Get sheet names
+    buf.seek(0)
+    wb = openpyxl.load_workbook(buf, read_only=True)
+    sheet_names = wb.sheetnames
+    wb.close()
+    buf.seek(0)
+    return buf, sheet_names
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # ROUTES
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -620,62 +1129,246 @@ def build_sdem_excel(em_list, fname, opts):
 def index():
     return send_file('index.html')
 
+@app.route('/detect', methods=['POST'])
+def detect():
+    """Auto-detect the FHX type without full parsing."""
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file'}), 400
+    f    = request.files['file']
+    raw  = f.read()
+    text = decode_fhx(raw)
+    detected = detect_fhx_type(text)
+    # Also get quick stats
+    fb_count  = len(re.findall(r'FUNCTION_BLOCK_DEFINITION\s+NAME=', text))
+    step_count= len(re.findall(r'STEP\s+NAME=', text))
+    act_count = len(re.findall(r'ACTION\s+NAME=', text))
+    cmd_names = re.findall(r"T_IN_\d+[^}]+A_COMMAND[^:]+:([^']+)'", text)
+    cmd_names = [c.strip() for c in cmd_names]
+    return jsonify({
+        'type':     detected,
+        'fb_count': fb_count,
+        'steps':    step_count,
+        'actions':  act_count,
+        'commands': cmd_names,
+    })
+
 @app.route('/convert', methods=['POST'])
 def convert():
+    """Convert a single FHX file to Excel or Word."""
     if 'file' not in request.files:
         return jsonify({'error': 'No file uploaded'}), 400
     f = request.files['file']
-    if not f.filename.lower().endswith('.fhx'):
-        return jsonify({'error': 'File must be a .fhx file'}), 400
 
-    fhx_type = request.form.get('fhx_type', 'phase')   # phase | em_cd | em_sd
+    fhx_type = request.form.get('fhx_type', 'auto')
+    fmt      = request.form.get('format', 'excel')   # excel | word
+    cols_raw = request.form.get('columns', '')
+    cols     = [c.strip() for c in cols_raw.split(',') if c.strip()] or None
+
     opts = {
         'summary':     request.form.get('summary',     'true') == 'true',
         'transitions': request.form.get('transitions', 'true') == 'true',
         'expressions': request.form.get('expressions', 'true') == 'true',
+        'columns':     cols or ['step','description','action','qualifier',
+                                'expression','delay','confirm_expression'],
     }
+
     raw   = f.read()
     text  = decode_fhx(raw)
     fname = re.sub(r'\.fhx$', '', f.filename, flags=re.IGNORECASE)
 
+    if fhx_type == 'auto':
+        fhx_type = detect_fhx_type(text)
+
     try:
-        if fhx_type == 'phase':
-            blocks = parse_phase_fhx(text)
-            if not blocks:
-                return jsonify({'error': 'No FUNCTION_BLOCK_DEFINITION blocks found. Is this a Phase FHX?'}), 400
-            buf = build_phase_excel(blocks, fname, opts)
-
-        elif fhx_type == 'em_cd':
-            commands = parse_cdem_fhx(text)
-            if not commands:
-                return jsonify({'error': 'No COMMAND_DRIVEN_ALGORITHM found. Is this a Command Driven EM FHX?'}), 400
-            buf = build_cdem_excel(commands, fname, opts)
-
-        elif fhx_type == 'em_sd':
-            em_list = parse_sdem_fhx(text)
-            if not em_list:
-                return jsonify({'error': 'No STATE_DRIVEN_ALGORITHM found. Is this a State Driven EM FHX?'}), 400
-            buf = build_sdem_excel(em_list, fname, opts)
-
-        else:
-            return jsonify({'error': f'Unknown fhx_type: {fhx_type}'}), 400
-
+        buf, sheet_names = parse_and_build(text, fhx_type, fname, opts, fmt)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
     except Exception as e:
         return jsonify({'error': f'Parse error: {str(e)}'}), 500
 
-    # Build response with sheet names in header so client can show pills
-    response = send_file(buf, as_attachment=True,
-                         download_name=fname + '_Logic.xlsx',
-                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    if fmt == 'word':
+        resp = send_file(buf, as_attachment=True,
+                         download_name=fname + '_DDS.docx',
+                         mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        resp.headers['X-Detected-Type'] = fhx_type
+        return resp
 
-    # Read workbook sheet names before the buffer is consumed
-    buf.seek(0)
-    import openpyxl as _ox
-    _wb = _ox.load_workbook(buf, read_only=True)
-    response.headers['X-Sheet-Names'] = '|'.join(_wb.sheetnames)
-    _wb.close()
-    buf.seek(0)
-    return response
+    resp = send_file(buf, as_attachment=True,
+                     download_name=fname + '_Logic.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    if sheet_names:
+        resp.headers['X-Sheet-Names']   = '|'.join(sheet_names)
+    resp.headers['X-Detected-Type'] = fhx_type
+    return resp
+
+@app.route('/batch', methods=['POST'])
+def batch_convert():
+    """
+    Batch convert multiple FHX files into one combined Excel workbook.
+    Each file gets its own tab group with a divider sheet.
+    """
+    import zipfile
+
+    files = request.files.getlist('files')
+    if not files:
+        return jsonify({'error': 'No files uploaded'}), 400
+
+    fmt      = request.form.get('format', 'excel')
+    cols_raw = request.form.get('columns', '')
+    cols     = [c.strip() for c in cols_raw.split(',') if c.strip()] or None
+    opts = {
+        'summary':     request.form.get('summary',     'true') == 'true',
+        'transitions': request.form.get('transitions', 'true') == 'true',
+        'expressions': request.form.get('expressions', 'true') == 'true',
+        'columns':     cols or ['step','description','action','qualifier',
+                                'expression','delay','confirm_expression'],
+    }
+
+    if fmt == 'word':
+        # Return zip of individual Word files
+        zip_buf = io.BytesIO()
+        results = []
+        errors  = []
+        with zipfile.ZipFile(zip_buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for f in files:
+                try:
+                    raw      = f.read()
+                    text     = decode_fhx(raw)
+                    fname    = re.sub(r'\.fhx$', '', f.filename, flags=re.IGNORECASE)
+                    fhx_type = detect_fhx_type(text)
+                    buf, _   = parse_and_build(text, fhx_type, fname, opts, 'word')
+                    zf.writestr(fname + '_DDS.docx', buf.read())
+                    results.append(fname)
+                except Exception as e:
+                    errors.append(f'{f.filename}: {e}')
+        zip_buf.seek(0)
+        batch_name = 'DDS_Batch_' + datetime.datetime.now().strftime('%Y%m%d_%H%M') + '.zip'
+        resp = send_file(zip_buf, as_attachment=True,
+                         download_name=batch_name,
+                         mimetype='application/zip')
+        resp.headers['X-Batch-Count']  = str(len(results))
+        resp.headers['X-Batch-Errors'] = str(len(errors))
+        resp.headers['X-Batch-Names']  = '|'.join(results)
+        return resp
+
+    # Excel — combine into one workbook, one tab group per file
+    combined_wb = openpyxl.Workbook()
+    # Remove default empty sheet
+    combined_wb.remove(combined_wb.active)
+
+    batch_summary_rows = []
+    errors = []
+    file_count = 0
+
+    for f in files:
+        try:
+            raw      = f.read()
+            text     = decode_fhx(raw)
+            fname    = re.sub(r'\.fhx$', '', f.filename, flags=re.IGNORECASE)
+            fhx_type = detect_fhx_type(text)
+            buf, sheet_names = parse_and_build(text, fhx_type, fname, opts, 'excel')
+
+            # Load the individual workbook and copy sheets into combined
+            buf.seek(0)
+            src_wb = openpyxl.load_workbook(buf)
+
+            # Add a divider sheet
+            div_tab = (fname[:25] + '…') if len(fname) > 25 else fname
+            div_ws  = combined_wb.create_sheet(title=('── ' + div_tab)[:31])
+            div_ws.sheet_properties.tabColor = '1F3864'
+            div_ws['A1'] = fname
+            div_ws['A1'].font  = Font(name='Calibri', bold=True, size=14, color='FFFFFF')
+            div_ws['A1'].fill  = PatternFill('solid', start_color='1F3864')
+            div_ws['A2'] = f'Type: {fhx_type.upper()}   |   Sheets: {len(src_wb.sheetnames)}'
+            div_ws['A2'].font  = Font(name='Calibri', size=11, color='AAAAAA')
+            div_ws.column_dimensions['A'].width = 60
+
+            # Copy each sheet
+            for sname in src_wb.sheetnames:
+                src_ws = src_wb[sname]
+                new_title = (fname[:15] + '·' + sname)[:31]
+                new_ws = combined_wb.create_sheet(title=new_title)
+                for row in src_ws.iter_rows():
+                    for cell in row:
+                        nc = new_ws.cell(row=cell.row, column=cell.column, value=cell.value)
+                        if cell.has_style:
+                            nc.font      = cell.font.copy()
+                            nc.fill      = cell.fill.copy()
+                            nc.border    = cell.border.copy()
+                            nc.alignment = cell.alignment.copy()
+                # Copy column widths
+                for col_letter, cd in src_ws.column_dimensions.items():
+                    new_ws.column_dimensions[col_letter].width = cd.width
+                # Copy row heights
+                for rn, rd in src_ws.row_dimensions.items():
+                    new_ws.row_dimensions[rn].height = rd.height
+                # Copy merges
+                for merge in src_ws.merged_cells.ranges:
+                    new_ws.merge_cells(str(merge))
+
+            src_wb.close()
+            acts = sum(len(re.findall(r'ACTION\s+NAME=', text)))
+            batch_summary_rows.append({
+                'name': fname, 'type': fhx_type,
+                'sheets': len(sheet_names or []),
+                'steps': len(re.findall(r'STEP\s+NAME=', text)),
+                'actions': acts,
+                'status': 'OK'
+            })
+            file_count += 1
+
+        except Exception as e:
+            errors.append({'name': f.filename, 'error': str(e)})
+            batch_summary_rows.append({
+                'name': f.filename, 'type': '?', 'sheets': 0,
+                'steps': 0, 'actions': 0, 'status': f'ERROR: {e}'
+            })
+
+    # Add batch summary as first sheet
+    if opts.get('summary', True):
+        summ_ws = combined_wb.create_sheet(title='BATCH SUMMARY', index=0)
+        summ_ws.sheet_properties.tabColor = '0D1B4B'
+        summ_ws['A1'] = 'Batch Export Summary'
+        summ_ws['A1'].font = Font(name='Calibri', bold=True, size=14, color='FFFFFF')
+        summ_ws['A1'].fill = PatternFill('solid', start_color='0D1B4B')
+        summ_ws['B1'] = datetime.datetime.now().strftime('%d-%b-%Y %H:%M')
+        summ_ws['B1'].font = Font(name='Calibri', size=11, color='AAAAAA')
+        summ_ws.merge_cells('A1:F1')
+
+        headers = ['File', 'Type', 'Sheets', 'Steps', 'Actions', 'Status']
+        for ci, h in enumerate(headers, 1):
+            c = summ_ws.cell(row=2, column=ci, value=h)
+            c.font = Font(name='Calibri', bold=True, color='FFFFFF', size=10)
+            c.fill = PatternFill('solid', start_color='1F3864')
+
+        for ri, row_data in enumerate(batch_summary_rows):
+            ri_sheet = ri + 3
+            is_err   = row_data['status'] != 'OK'
+            fill_col = 'FFCCCC' if is_err else ('D9E1F2' if ri%2==0 else 'FFFFFF')
+            vals = [row_data['name'], row_data['type'].upper(),
+                    row_data['sheets'], row_data['steps'],
+                    row_data['actions'], row_data['status']]
+            for ci, val in enumerate(vals, 1):
+                c = summ_ws.cell(row=ri_sheet, column=ci, value=val)
+                c.font = Font(name='Calibri', size=10)
+                c.fill = PatternFill('solid', start_color=fill_col)
+
+        col_widths = [40, 16, 8, 8, 10, 20]
+        for ci, w in enumerate(col_widths, 1):
+            summ_ws.column_dimensions[get_column_letter(ci)].width = w
+
+    combined_buf = io.BytesIO()
+    combined_wb.save(combined_buf)
+    combined_buf.seek(0)
+
+    batch_name = 'FHX_Batch_' + datetime.datetime.now().strftime('%Y%m%d_%H%M') + '.xlsx'
+    resp = send_file(combined_buf, as_attachment=True,
+                     download_name=batch_name,
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    resp.headers['X-Batch-Count']  = str(file_count)
+    resp.headers['X-Batch-Errors'] = str(len(errors))
+    resp.headers['X-Batch-Names']  = '|'.join(r['name'] for r in batch_summary_rows)
+    return resp
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
