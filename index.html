@@ -8,741 +8,519 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#f4f6f9;
-  --white:#ffffff;
-  --s1:#f8f9fc;
-  --bd:#e4e7ed;
-  --bd2:#d0d4de;
-  --blue:#2563eb;
-  --blue50:#eff4ff;
-  --blue100:#dbeafe;
-  --blue600:#1d4ed8;
-  --blue800:#1e3a8a;
-  --green:#059669;
-  --green50:#ecfdf5;
-  --green100:#d1fae5;
-  --orange:#ea580c;
-  --orange50:#fff7ed;
-  --orange100:#fed7aa;
-  --orange800:#7c2d12;
-  --purple:#7c3aed;
-  --purple50:#f5f3ff;
-  --purple100:#ede9fe;
-  --purple800:#4c1d95;
-  --amber:#b45309;
-  --amber50:#fffbeb;
-  --red:#dc2626;
-  --red50:#fef2f2;
-  --text:#0f172a;
-  --text2:#334155;
-  --muted:#64748b;
-  --dim:#94a3b8;
-  --mono:'JetBrains Mono',monospace;
-  --sans:'Inter',sans-serif;
+  --bg:#f0f2f5;--white:#fff;--s1:#f8f9fc;--s2:#f0f4ff;
+  --bd:#e2e5ea;--bd2:#cdd1da;
+  --blue:#2563eb;--blue50:#eff4ff;--blue100:#dbeafe;--blue600:#1d4ed8;--blue900:#1e3a8a;
+  --green:#059669;--green50:#ecfdf5;--green100:#d1fae5;--green800:#065f46;
+  --orange:#ea580c;--orange50:#fff7ed;--orange100:#fed7aa;--orange800:#7c2d12;
+  --purple:#7c3aed;--purple50:#f5f3ff;--purple100:#ede9fe;--purple800:#4c1d95;
+  --amber:#d97706;--amber50:#fffbeb;
+  --red:#dc2626;--red50:#fef2f2;
+  --text:#0f172a;--text2:#334155;--muted:#64748b;--dim:#94a3b8;
+  --sans:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.06);
+  --shadow:0 1px 4px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.05);
+  --shadow-md:0 4px 12px rgba(0,0,0,.08),0 2px 4px rgba(0,0,0,.04);
 }
-html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.5}
-body{display:flex;flex-direction:column;overflow:hidden}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;overflow:hidden}
+body{display:flex;flex-direction:column}
 
-/* HEADER */
+/* ── HEADER ── */
 header{
-  height:58px;padding:0 28px;
-  display:flex;align-items:center;gap:16px;
+  height:52px;padding:0 20px;flex-shrink:0;
+  display:flex;align-items:center;gap:12px;
   background:var(--blue);
-  flex-shrink:0;
+  box-shadow:0 1px 0 rgba(0,0,0,.15);
+  z-index:30;
 }
-.h-logo{display:flex;align-items:center;gap:10px}
-.h-icon{
-  width:32px;height:32px;background:rgba(255,255,255,.2);
-  border-radius:8px;display:grid;place-items:center;
+.h-logo{display:flex;align-items:center;gap:9px}
+.h-icon{width:30px;height:30px;background:rgba(255,255,255,.2);border-radius:7px;display:grid;place-items:center;flex-shrink:0}
+.h-icon svg{width:15px;height:15px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.h-name{font-size:14px;font-weight:600;color:#fff;letter-spacing:-.01em}
+.h-name span{opacity:.65;font-weight:400}
+.h-sep{width:1px;height:20px;background:rgba(255,255,255,.2);flex-shrink:0}
+.h-file{font-size:12px;color:rgba(255,255,255,.75);font-family:var(--mono);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.h-pill{
+  font-size:11px;color:rgba(255,255,255,.8);
+  background:rgba(255,255,255,.12);
+  padding:3px 10px;border-radius:20px;font-weight:500;
+  display:flex;align-items:center;gap:5px;
 }
-.h-icon svg{width:17px;height:17px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
-.h-title{font-size:15px;font-weight:600;color:#fff;letter-spacing:-.01em}
-.h-title span{opacity:.75}
-.h-badge{
-  font-size:11px;color:rgba(255,255,255,.7);
-  background:rgba(255,255,255,.15);
-  padding:3px 10px;border-radius:20px;letter-spacing:.03em;
-}
-.h-right{margin-left:auto;display:flex;align-items:center;gap:10px}
-.h-status{display:flex;align-items:center;gap:6px}
-.h-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.35);transition:all .3s}
-.h-dot.on{background:#34d399}
-.h-lbl{font-size:12px;color:rgba(255,255,255,.7)}
+.h-pill .dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.4)}
+.h-pill.on .dot{background:#34d399}
 
-/* MAIN LAYOUT */
-.shell{flex:1;display:flex;overflow:hidden;min-height:0}
-
-/* LEFT NAV */
-.left{
-  width:380px;flex-shrink:0;
-  background:var(--white);
-  border-right:1px solid var(--bd);
-  display:flex;flex-direction:column;
-  overflow-y:auto;
+/* ── TOOLBAR ── */
+.toolbar{
+  height:48px;padding:0 16px;flex-shrink:0;
+  display:flex;align-items:center;gap:6px;
+  background:var(--white);border-bottom:1px solid var(--bd);
+  box-shadow:var(--shadow-sm);z-index:20;overflow:hidden;
 }
-.left::-webkit-scrollbar{width:4px}
-.left::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:2px}
 
-/* CARD */
-.card{
-  margin:16px 16px 0;
-  background:var(--white);
-  border:1px solid var(--bd);
-  border-radius:12px;
-  overflow:hidden;
-}
-.card:last-of-type{margin-bottom:16px}
-.card-head{
-  padding:12px 16px;
-  border-bottom:1px solid var(--bd);
-  background:var(--s1);
+/* File slot */
+.file-slot{
   display:flex;align-items:center;gap:8px;
+  padding:5px 10px;border-radius:8px;
+  border:1.5px dashed var(--bd2);background:var(--s1);
+  cursor:pointer;transition:all .15s;position:relative;min-width:180px;
 }
-.card-head .step-badge{
-  width:20px;height:20px;border-radius:50%;
-  background:var(--blue);color:#fff;
-  display:grid;place-items:center;
-  font-size:10px;font-weight:700;flex-shrink:0;
-}
-.card-head .card-title{font-size:12px;font-weight:600;color:var(--text2);letter-spacing:.02em}
-.card-body{padding:14px 16px}
+.file-slot:hover{border-color:var(--blue);background:var(--blue50)}
+.file-slot.has-file{border-style:solid;border-color:var(--green);background:var(--green50);cursor:default}
+.file-slot input{position:absolute;width:1px;height:1px;opacity:0}
+.fs-icon{font-size:14px;flex-shrink:0}
+.fs-text{font-size:11px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.file-slot .fs-text{color:var(--muted)}
+.file-slot.has-file .fs-text{color:var(--green800);font-family:var(--mono)}
+.fs-clear{background:none;border:none;cursor:pointer;color:var(--dim);font-size:13px;
+  padding:1px 3px;border-radius:4px;flex-shrink:0;line-height:1;margin-left:auto}
+.fs-clear:hover{color:var(--red);background:var(--red50)}
 
-/* MODE TABS */
-.mode-tabs{display:grid;grid-template-columns:1fr 1fr;gap:0;
-  border:1px solid var(--bd);border-radius:8px;overflow:hidden;background:var(--s1)}
-.mtab{
-  padding:9px 12px;font-size:12px;font-weight:500;
-  text-align:center;background:transparent;
-  color:var(--muted);border:none;cursor:pointer;
-  border-right:1px solid var(--bd);transition:all .15s;
-  display:flex;align-items:center;justify-content:center;gap:7px;
-}
-.mtab:last-child{border-right:none}
-.mtab.on{background:var(--blue);color:#fff;font-weight:600}
-.mtab:hover:not(.on){background:var(--bd);color:var(--text2)}
-.mode-note{font-size:11px;color:var(--muted);margin-top:10px;line-height:1.6;
-  padding:8px 10px;background:var(--blue50);border-radius:7px;
-  border-left:3px solid var(--blue100)}
-.mode-note b{color:var(--blue800)}
+.tb-sep{width:1px;height:28px;background:var(--bd);flex-shrink:0;margin:0 2px}
 
-/* TYPE CARDS */
-.type-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
-.tbtn{
-  padding:12px 10px;border-radius:10px;
-  border:2px solid var(--bd);background:var(--white);
-  cursor:pointer;transition:all .18s;text-align:left;
-  display:flex;flex-direction:column;gap:8px;
-}
-.tbtn:hover{border-color:var(--bd2);box-shadow:0 2px 8px rgba(0,0,0,.07)}
-.tbtn.tp{border-color:var(--blue);background:var(--blue50)}
-.tbtn.te{border-color:var(--orange);background:var(--orange50)}
-.tbtn .tico{
-  width:32px;height:32px;border-radius:8px;
-  display:grid;place-items:center;font-size:16px;
-}
-.tbtn.tp .tico{background:var(--blue100)}
-.tbtn.te .tico{background:var(--orange100)}
-.tbtn .t-name{font-size:12px;font-weight:600;color:var(--text2)}
-.tbtn.tp .t-name{color:var(--blue800)}
-.tbtn.te .t-name{color:var(--orange800)}
-.tbtn .t-sub{font-size:10px;color:var(--muted);margin-top:1px}
+/* Toolbar section label */
+.tb-lbl{font-size:9px;font-weight:600;color:var(--dim);text-transform:uppercase;
+  letter-spacing:.1em;white-space:nowrap;padding-right:4px}
 
-.sub-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
-.sbtn{
-  padding:8px 6px;border-radius:8px;
-  border:1.5px solid var(--bd);background:var(--white);
-  color:var(--muted);font-size:10px;font-weight:500;
-  cursor:pointer;transition:all .15s;text-align:center;line-height:1.5;
-}
-.sbtn:hover{border-color:var(--bd2);color:var(--text2)}
-.sbtn.sc{border-color:var(--orange);background:var(--orange50);color:var(--orange800)}
-.sbtn.ss{border-color:var(--purple);background:var(--purple50);color:var(--purple800)}
-.sbtn:disabled{opacity:.3;cursor:default}
+/* Mode toggle */
+.mode-toggle{display:flex;background:var(--s1);border:1px solid var(--bd);border-radius:7px;overflow:hidden;flex-shrink:0}
+.mt-btn{padding:5px 12px;font-size:11px;font-weight:500;border:none;background:transparent;
+  color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+.mt-btn:hover{color:var(--text2)}
+.mt-btn.on{background:var(--blue);color:#fff;font-weight:600}
 
-.type-hint{
-  font-size:11px;color:var(--muted);line-height:1.6;
-  padding:8px 10px;background:var(--s1);border-radius:7px;
+/* Type pills */
+.type-pills{display:flex;gap:4px;flex-shrink:0}
+.tp-btn{
+  padding:5px 11px;border-radius:20px;font-size:11px;font-weight:500;
+  border:1px solid var(--bd);background:var(--s1);color:var(--muted);
+  cursor:pointer;transition:all .15s;white-space:nowrap;
 }
-.type-hint b{color:var(--text2)}
+.tp-btn:hover{border-color:var(--bd2);color:var(--text2)}
+.tp-btn.p{border-color:var(--blue);background:var(--blue50);color:var(--blue900)}
+.tp-btn.e{border-color:var(--orange);background:var(--orange50);color:var(--orange800)}
 
-.auto-badge{
-  display:inline-flex;align-items:center;gap:4px;
-  font-size:9px;font-weight:700;padding:2px 8px;
-  border-radius:20px;margin-left:8px;letter-spacing:.05em;
-  vertical-align:middle;
+/* EM sub pills */
+.em-pills{display:flex;gap:3px;flex-shrink:0}
+.ep-btn{
+  padding:4px 9px;border-radius:20px;font-size:10px;font-weight:500;
+  border:1px solid var(--bd);background:var(--s1);color:var(--muted);
+  cursor:pointer;transition:all .15s;white-space:nowrap;
 }
-.auto-badge.phase{background:var(--blue100);color:var(--blue800)}
-.auto-badge.em_cd{background:var(--orange100);color:var(--orange800)}
-.auto-badge.em_sd{background:var(--purple100);color:var(--purple800)}
+.ep-btn:hover{color:var(--text2)}
+.ep-btn.sc{border-color:var(--orange);background:var(--orange50);color:var(--orange800)}
+.ep-btn.ss{border-color:var(--purple);background:var(--purple50);color:var(--purple800)}
+.ep-btn:disabled{opacity:.3;cursor:default}
 
-/* DROP ZONE */
-.drop-zone{
-  border:2px dashed var(--bd2);border-radius:10px;
-  padding:24px 16px;text-align:center;cursor:pointer;
-  transition:all .2s;background:var(--s1);position:relative;
+/* Format pills */
+.fmt-pills{display:flex;gap:4px;flex-shrink:0}
+.fp-btn{
+  padding:5px 11px;border-radius:20px;font-size:11px;font-weight:500;
+  border:1px solid var(--bd);background:var(--s1);color:var(--muted);
+  cursor:pointer;transition:all .15s;white-space:nowrap;
+  display:flex;align-items:center;gap:5px;
 }
-.drop-zone:hover,.drop-zone.over{border-color:var(--blue);background:var(--blue50)}
-.drop-zone input{position:absolute;width:1px;height:1px;opacity:0}
-.dz-ring{
-  width:52px;height:52px;border-radius:50%;
-  background:var(--white);border:2px solid var(--bd);
-  display:flex;align-items:center;justify-content:center;
-  margin:0 auto 12px;font-size:22px;
-  box-shadow:0 1px 4px rgba(0,0,0,.07);
-}
-.dz-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:3px}
-.dz-sub{font-size:11px;color:var(--muted)}
+.fp-btn:hover{border-color:var(--bd2);color:var(--text2)}
+.fp-btn.on.xl{border-color:var(--green);background:var(--green50);color:var(--green800)}
+.fp-btn.on.wd{border-color:var(--blue);background:var(--blue50);color:var(--blue900)}
+.fp-btn.on.dg{border-color:var(--purple);background:var(--purple50);color:var(--purple800)}
 
-.file-list{display:flex;flex-direction:column;gap:4px;margin-top:8px;max-height:110px;overflow-y:auto}
-.fitem{
-  display:flex;align-items:center;gap:8px;
-  padding:7px 10px;border-radius:8px;
-  border:1px solid var(--bd);background:var(--white);
-  transition:all .15s;
+/* Columns popover trigger */
+.col-trigger{
+  padding:5px 11px;border-radius:20px;font-size:11px;font-weight:500;
+  border:1px solid var(--bd);background:var(--s1);color:var(--muted);
+  cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px;
+  position:relative;flex-shrink:0;
 }
-.fitem.detecting{border-color:var(--amber);background:var(--amber50)}
-.fitem.ready{border-color:var(--green);background:var(--green50)}
-.fi-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
-.fi-name{font-family:var(--mono);font-size:11px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text2)}
-.fi-tag{font-size:9px;font-weight:700;padding:2px 8px;border-radius:20px;flex-shrink:0;letter-spacing:.04em}
-.fi-rm{background:none;border:none;color:var(--dim);cursor:pointer;padding:3px 5px;
-  font-size:13px;border-radius:5px;transition:all .15s;flex-shrink:0;line-height:1}
-.fi-rm:hover{color:var(--red);background:var(--red50)}
-
-/* FORMAT */
-.fmt-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.fbtn{
-  padding:12px 10px;border-radius:10px;
-  border:2px solid var(--bd);background:var(--white);
-  cursor:pointer;transition:all .18s;
-  display:flex;align-items:center;gap:9px;
+.col-trigger:hover{border-color:var(--bd2);color:var(--text2)}
+.col-trigger.open{border-color:var(--blue);background:var(--blue50);color:var(--blue900)}
+.col-popover{
+  position:absolute;top:calc(100% + 8px);left:0;
+  background:var(--white);border:1px solid var(--bd);border-radius:12px;
+  padding:12px;box-shadow:var(--shadow-md);z-index:100;
+  display:none;flex-wrap:wrap;gap:5px;width:280px;
 }
-.fbtn:hover{border-color:var(--bd2);box-shadow:0 2px 8px rgba(0,0,0,.07)}
-.fbtn.on.xl{border-color:var(--green);background:var(--green50)}
-.fbtn.on.wd{border-color:var(--blue);background:var(--blue50)}
-.fbtn.on.dg{border-color:var(--purple);background:var(--purple50)}
-.fbtn .fico{
-  width:32px;height:32px;border-radius:8px;background:var(--s1);
-  display:grid;place-items:center;font-size:16px;flex-shrink:0;
-}
-.fbtn.on.xl .fico{background:var(--green100)}
-.fbtn.on.wd .fico{background:var(--blue100)}
-.fbtn .f-name{font-size:12px;font-weight:600;color:var(--text2)}
-.fbtn.on.xl .f-name{color:#065f46}
-.fbtn.on.wd .f-name{color:var(--blue800)}
-.fbtn .f-ext{font-size:10px;color:var(--muted);margin-top:1px}
-
-/* COLUMNS */
-.chips{display:flex;flex-wrap:wrap;gap:5px}
+.col-popover.show{display:flex}
 .chip{
   display:inline-flex;align-items:center;gap:4px;
   padding:4px 10px;border-radius:20px;
-  border:1px solid var(--bd);background:var(--white);
+  border:1px solid var(--bd);background:var(--s1);
   font-size:11px;font-weight:500;color:var(--muted);
   cursor:pointer;transition:all .15s;user-select:none;
 }
 .chip:hover{border-color:var(--bd2);color:var(--text2)}
-.chip.on{border-color:var(--blue);background:var(--blue50);color:var(--blue800)}
+.chip.on{border-color:var(--blue);background:var(--blue50);color:var(--blue900)}
 .chip.fixed{color:var(--dim);cursor:default;background:var(--s1)}
-.chip .ck{font-size:10px;font-weight:700}
 
-/* OPTIONS */
-.opt{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--bd)}
-.opt:last-child{border-bottom:none}
-.opt.hidden{display:none}
-.o-label{font-size:13px;font-weight:500;color:var(--text2)}
-.o-sub{font-size:11px;color:var(--muted);margin-top:1px}
-.tog{
-  width:36px;height:20px;border-radius:10px;
-  background:var(--bd2);border:none;cursor:pointer;
-  position:relative;flex-shrink:0;transition:background .2s;outline:none;
-}
+/* Options toggles inline */
+.opts-inline{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.oi-item{display:flex;align-items:center;gap:5px;cursor:pointer}
+.oi-label{font-size:11px;color:var(--muted);white-space:nowrap}
+.tog{width:30px;height:16px;border-radius:8px;background:var(--bd2);border:none;
+  cursor:pointer;position:relative;flex-shrink:0;transition:background .2s;outline:none}
 .tog.on{background:var(--blue)}
-.tog::after{
-  content:'';position:absolute;
-  width:14px;height:14px;background:#fff;
-  border-radius:50%;top:3px;left:3px;
-  transition:transform .2s;
-  box-shadow:0 1px 3px rgba(0,0,0,.25);
-}
-.tog.on::after{transform:translateX(16px)}
+.tog::after{content:'';position:absolute;width:11px;height:11px;background:#fff;
+  border-radius:50%;top:2.5px;left:2.5px;transition:transform .2s;
+  box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.tog.on::after{transform:translateX(14px)}
 
-/* STATS */
-.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.stat{
-  padding:12px;border-radius:10px;
+/* Stats chips */
+.stat-chips{display:flex;gap:4px;flex-shrink:0}
+.sc-chip{
+  padding:4px 9px;border-radius:20px;
   background:var(--blue50);border:1px solid var(--blue100);
-  text-align:center;
+  font-size:11px;color:var(--blue900);display:flex;align-items:center;gap:4px;
 }
-.stat-n{font-family:var(--mono);font-size:22px;font-weight:500;color:var(--blue);line-height:1}
-.stat-l{font-size:10px;color:var(--muted);margin-top:5px;text-transform:uppercase;letter-spacing:.08em;font-weight:500}
+.sc-chip b{font-family:var(--mono);font-weight:600}
 
-/* RUN BUTTON */
-.run-wrap{padding:16px}
-.run-btn{
-  width:100%;padding:13px 16px;border-radius:10px;
+/* Process button */
+.proc-btn{
+  margin-left:auto;flex-shrink:0;
+  padding:7px 18px;border-radius:8px;
   background:var(--blue);color:#fff;
-  border:none;font-size:13px;font-weight:600;
-  cursor:pointer;transition:all .2s;
-  display:flex;align-items:center;justify-content:center;gap:9px;
-  box-shadow:0 4px 12px rgba(37,99,235,.3);
-  letter-spacing:.01em;
+  border:none;font-size:12px;font-weight:600;cursor:pointer;
+  transition:all .2s;display:flex;align-items:center;gap:7px;
+  box-shadow:0 2px 8px rgba(37,99,235,.3);
 }
-.run-btn:hover:not(:disabled){background:var(--blue600);box-shadow:0 6px 16px rgba(37,99,235,.4);transform:translateY(-1px)}
-.run-btn:active{transform:none}
-.run-btn:disabled{background:var(--bd2);color:var(--dim);cursor:not-allowed;box-shadow:none;transform:none}
-.run-btn.busy{background:var(--amber);color:#fff;box-shadow:0 4px 12px rgba(180,83,9,.3)}
-.run-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.proc-btn:hover:not(:disabled){background:var(--blue600);transform:translateY(-1px);box-shadow:0 4px 12px rgba(37,99,235,.4)}
+.proc-btn:disabled{background:var(--bd2);color:var(--dim);cursor:not-allowed;box-shadow:none;transform:none}
+.proc-btn.busy{background:var(--amber);color:#fff;box-shadow:0 2px 8px rgba(180,83,9,.3)}
+.proc-btn svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
 
-/* RIGHT MAIN AREA */
-.right{flex:1;display:flex;flex-direction:column;overflow:hidden;min-height:0}
+/* ── CONTENT AREA ── */
+.content{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;position:relative}
 
-/* TOP BAR with STATS STRIP */
-.right-top{
-  padding:20px 28px;
-  background:var(--white);
-  border-bottom:1px solid var(--bd);
-  flex-shrink:0;
-}
-.rt-title{font-size:18px;font-weight:600;color:var(--text);margin-bottom:4px}
-.rt-sub{font-size:13px;color:var(--muted)}
-.feature-strip{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
-  margin-top:20px;
-}
-.feat{
-  padding:16px;border-radius:12px;
-  border:1px solid var(--bd);background:var(--s1);
-  display:flex;align-items:flex-start;gap:12px;
-}
-.feat-icon{
-  width:38px;height:38px;border-radius:9px;
-  display:grid;place-items:center;font-size:18px;flex-shrink:0;
-}
-.feat.blue .feat-icon{background:var(--blue50);border:1px solid var(--blue100)}
-.feat.green .feat-icon{background:var(--green50);border:1px solid var(--green100)}
-.feat.purple .feat-icon{background:var(--purple50);border:1px solid var(--purple100)}
-.feat-title{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:3px}
-.feat-desc{font-size:11px;color:var(--muted);line-height:1.6}
-
-/* PROGRESS AREA — compact card */
-.progress-area{flex:1;overflow-y:auto;padding:24px 28px;display:flex;flex-direction:column;gap:16px}
-.progress-area::-webkit-scrollbar{width:5px}
-.progress-area::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
-
-/* WELCOME STATE */
+/* Welcome screen */
 .welcome{
-  flex:1;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;
-  text-align:center;padding:40px;
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:40px;text-align:center;
 }
-.welcome-icon{
-  width:72px;height:72px;border-radius:18px;
+.wlc-icon{
+  width:64px;height:64px;border-radius:16px;
   background:var(--blue50);border:2px solid var(--blue100);
-  display:grid;place-items:center;font-size:32px;
-  margin:0 auto 20px;
+  display:grid;place-items:center;font-size:28px;
+  margin:0 auto 18px;
 }
-.welcome-title{font-size:20px;font-weight:600;color:var(--text);margin-bottom:8px}
-.welcome-sub{font-size:14px;color:var(--muted);line-height:1.7;max-width:360px}
-.welcome-steps{
-  display:grid;grid-template-columns:1fr 1fr;gap:10px;
-  margin-top:28px;text-align:left;max-width:400px;width:100%;
+.wlc-title{font-size:22px;font-weight:600;color:var(--text);margin-bottom:8px}
+.wlc-sub{font-size:14px;color:var(--muted);line-height:1.7;max-width:400px;margin:0 auto 28px}
+.wlc-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;max-width:600px;margin:0 auto}
+.wlc-step{
+  background:var(--white);border:1px solid var(--bd);border-radius:12px;
+  padding:14px;text-align:left;
 }
-.ws{
-  padding:12px 14px;border-radius:10px;
-  background:var(--white);border:1px solid var(--bd);
-  display:flex;align-items:flex-start;gap:10px;
+.wlc-num{
+  width:24px;height:24px;border-radius:50%;background:var(--blue);color:#fff;
+  display:grid;place-items:center;font-size:11px;font-weight:700;margin-bottom:8px;
 }
-.ws-num{
-  width:22px;height:22px;border-radius:50%;
-  background:var(--blue);color:#fff;
-  display:grid;place-items:center;font-size:10px;font-weight:700;flex-shrink:0;
-  margin-top:1px;
-}
-.ws-text{font-size:12px;color:var(--text2);font-weight:500;line-height:1.5}
-.ws-sub{font-size:10px;color:var(--muted);margin-top:2px}
+.wlc-stitle{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:3px}
+.wlc-sdesc{font-size:11px;color:var(--muted);line-height:1.5}
 
-/* LOG CARD */
+/* Feature cards row */
+.feat-row{
+  display:grid;grid-template-columns:repeat(3,1fr);
+  gap:10px;max-width:700px;margin:24px auto 0;width:100%;
+}
+.feat-card{
+  background:var(--white);border:1px solid var(--bd);border-radius:12px;
+  padding:14px;display:flex;align-items:flex-start;gap:10px;
+  cursor:pointer;transition:all .15s;
+}
+.feat-card:hover{border-color:var(--bd2);box-shadow:var(--shadow)}
+.feat-card .fi{font-size:20px;flex-shrink:0}
+.feat-card .ft{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:2px}
+.feat-card .fd{font-size:11px;color:var(--muted);line-height:1.5}
+.feat-card .new-badge{font-size:9px;font-weight:700;background:var(--purple50);
+  color:var(--purple800);padding:1px 5px;border-radius:20px;margin-left:4px;vertical-align:middle}
+
+/* Log card */
 .log-card{
-  background:var(--white);border:1px solid var(--bd);border-radius:12px;overflow:hidden;
+  margin:16px;background:var(--white);border:1px solid var(--bd);
+  border-radius:12px;overflow:hidden;flex-shrink:0;
 }
-.log-card-head{
-  padding:10px 16px;border-bottom:1px solid var(--bd);background:var(--s1);
-  display:flex;align-items:center;justify-content:space-between;
+.lc-head{
+  padding:10px 16px;background:var(--s1);border-bottom:1px solid var(--bd);
+  display:flex;align-items:center;gap:8px;
 }
-.log-card-title{font-size:12px;font-weight:600;color:var(--text2);display:flex;align-items:center;gap:7px}
-.log-card-title .dots{display:flex;gap:4px}
-.log-card-title .dot{width:9px;height:9px;border-radius:50%}
+.lc-dots{display:flex;gap:4px}
+.lc-dot{width:9px;height:9px;border-radius:50%}
+.lc-title{font-size:12px;font-weight:600;color:var(--text2)}
 .lc-badge{
-  font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;
-  background:var(--s1);color:var(--muted);border:1px solid var(--bd);letter-spacing:.04em;
+  margin-left:auto;font-size:10px;font-weight:600;
+  padding:2px 9px;border-radius:20px;letter-spacing:.04em;
+  background:var(--s1);color:var(--muted);border:1px solid var(--bd);
 }
 .lc-badge.run{background:var(--amber50);color:var(--amber);border-color:var(--orange100)}
 .lc-badge.done{background:var(--green50);color:var(--green);border-color:var(--green100)}
 .lc-badge.err{background:var(--red50);color:var(--red);border-color:#fecaca}
-
-.log-prog{height:3px;background:var(--bd)}
-.log-prog-fill{height:100%;width:0;background:var(--blue);transition:width .4s ease}
-
-.log-body{
-  padding:14px 16px;
-  font-family:var(--mono);font-size:11.5px;line-height:1.85;
-  background:#1a1d27;
-  max-height:220px;overflow-y:auto;
+.lc-prog{height:3px;background:var(--bd)}
+.lc-prog-fill{height:100%;width:0;background:var(--blue);transition:width .4s}
+.lc-body{
+  padding:12px 16px;font-family:var(--mono);font-size:11.5px;line-height:1.85;
+  background:#1a1d27;max-height:200px;overflow-y:auto;
 }
-.log-body::-webkit-scrollbar{width:3px}
-.log-body::-webkit-scrollbar-thumb{background:#3a3f52}
+.lc-body::-webkit-scrollbar{width:3px}
+.lc-body::-webkit-scrollbar-thumb{background:#3a3f52}
 .lr{display:flex;gap:10px;animation:pop .1s ease}
 @keyframes pop{from{opacity:0;transform:translateY(2px)}to{opacity:1;transform:none}}
 .lr .lt{color:#3d4360;flex-shrink:0;font-size:10px;padding-top:2px;min-width:50px}
 .lr .lm{flex:1;word-break:break-word}
-.lr.ok  .lm{color:#34d399}
-.lr.step .lm{color:#60a5fa;font-weight:500}
-.lr.warn .lm{color:#fbbf24}
-.lr.err  .lm{color:#f87171}
+.lr.ok .lm{color:#34d399}.lr.step .lm{color:#60a5fa;font-weight:500}
+.lr.warn .lm{color:#fbbf24}.lr.err .lm{color:#f87171}
 .lr.head .lm{color:#fb923c;font-weight:600;font-size:13px;font-family:var(--sans)}
-.lr.dim  .lm{color:#4b5268}
+.lr.dim .lm{color:#4b5268}
 
-/* RESULT CARD */
+/* Result card */
 .result-card{
-  background:var(--white);border:1px solid var(--green100);
-  border-radius:12px;overflow:hidden;
+  margin:0 16px 16px;background:var(--white);
+  border:1px solid var(--green100);border-radius:12px;overflow:hidden;
 }
-.result-card-head{
+.rc-head{
   padding:12px 16px;background:var(--green50);border-bottom:1px solid var(--green100);
   display:flex;align-items:center;gap:8px;
 }
-.result-card-head .rc-icon{font-size:18px}
-.result-card-head .rc-title{font-size:13px;font-weight:600;color:#065f46}
-.result-card-body{padding:14px 16px}
-.pills{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
+.rc-icon{font-size:18px}
+.rc-title{font-size:13px;font-weight:600;color:var(--green800)}
+.rc-body{padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.pills{display:flex;flex-wrap:wrap;gap:5px;flex:1}
 .pill{
-  display:inline-flex;align-items:center;gap:4px;
+  display:inline-flex;align-items:center;gap:3px;
   font-family:var(--mono);font-size:10px;font-weight:500;
-  padding:3px 9px;border-radius:20px;
+  padding:3px 8px;border-radius:20px;
   border:1px solid var(--bd);background:var(--s1);color:var(--muted);
 }
 .pill .pd{width:5px;height:5px;border-radius:50%}
-.pill-p{border-color:var(--blue100);background:var(--blue50);color:var(--blue800)}.pill-p .pd{background:var(--blue)}
+.pill-p{border-color:var(--blue100);background:var(--blue50);color:var(--blue900)}.pill-p .pd{background:var(--blue)}
 .pill-c{border-color:var(--orange100);background:var(--orange50);color:var(--orange800)}.pill-c .pd{background:var(--orange)}
 .pill-s{border-color:var(--purple100);background:var(--purple50);color:var(--purple800)}.pill-s .pd{background:var(--purple)}
-.pill-z{}.pill-z .pd{background:var(--dim)}
-.dl-row{display:flex;gap:8px;flex-wrap:wrap}
+.pill-z .pd{background:var(--dim)}
+.dl-row{display:flex;gap:8px;flex-shrink:0}
 .dl-btn{
-  display:inline-flex;align-items:center;gap:8px;
-  padding:10px 22px;border-radius:9px;
-  font-size:13px;font-weight:600;cursor:pointer;border:none;
-  transition:all .2s;letter-spacing:.01em;
+  display:inline-flex;align-items:center;gap:6px;padding:8px 18px;
+  border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:all .2s;
 }
 .dl-btn:hover{transform:translateY(-1px)}
-.dl-xl{background:var(--green);color:#fff;box-shadow:0 3px 10px rgba(5,150,105,.3)}
+.dl-xl{background:var(--green);color:#fff;box-shadow:0 2px 8px rgba(5,150,105,.25)}
 .dl-xl:hover{background:#047857}
-.dl-wd{background:var(--blue);color:#fff;box-shadow:0 3px 10px rgba(37,99,235,.3)}
+.dl-wd{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,.25)}
 .dl-wd:hover{background:var(--blue600)}
-.dl-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round}
+.dl-btn svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round}
 </style>
 </head>
 <body>
 
+<!-- HEADER -->
 <header>
   <div class="h-logo">
     <div class="h-icon">
       <svg viewBox="0 0 16 16"><polyline points="2,12 6,7 9,10 14,3"/><polyline points="11,3 14,3 14,6"/></svg>
     </div>
-    <div class="h-title">FHX Converter <span>· DeltaV</span></div>
+    <div class="h-name">FHX Converter <span>· DeltaV</span></div>
   </div>
-  <div class="h-badge">Phase &amp; EM Export</div>
+  <div class="h-sep"></div>
+  <div class="h-file" id="hFile">No file loaded</div>
   <div class="h-right">
-    <div class="h-status">
-      <div class="h-dot" id="hDot"></div>
-      <div class="h-lbl" id="hLbl">Ready</div>
-    </div>
+    <div class="h-pill" id="hPill"><div class="dot"></div><span id="hPillTxt">Ready</span></div>
   </div>
 </header>
 
-<div class="shell">
+<!-- TOOLBAR -->
+<div class="toolbar">
 
-<!-- LEFT SETTINGS -->
-<div class="left">
+  <!-- File -->
+  <label class="file-slot" id="fileSlot">
+    <input type="file" id="fileInput" multiple/>
+    <span class="fs-icon">📂</span>
+    <span class="fs-text" id="fsText">Drop or click to load .fhx</span>
+    <button class="fs-clear" id="fsClear" style="display:none" onclick="clearFiles(event)">✕</button>
+  </label>
 
-  <!-- 1. Mode -->
-  <div class="card">
-    <div class="card-head"><div class="step-badge">1</div><div class="card-title">MODE</div></div>
-    <div class="card-body">
-      <div class="mode-tabs">
-        <button class="mtab on" id="tabSingle" onclick="setMode('single')">
-          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 14 14" aria-hidden="true"><rect x="1" y="1" width="12" height="12" rx="2"/><line x1="4" y1="5" x2="10" y2="5"/><line x1="4" y1="7" x2="10" y2="7"/><line x1="4" y1="9" x2="7" y2="9"/></svg>
-          Single file
-        </button>
-        <button class="mtab" id="tabBatch" onclick="setMode('batch')">
-          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 14 14" aria-hidden="true"><rect x="0" y="3" width="9" height="9" rx="2"/><rect x="4" y="0" width="9" height="9" rx="2"/></svg>
-          Batch
-        </button>
-      </div>
-      <div class="mode-note" id="modeNote">Convert <b>one FHX file</b> — type is auto-detected on upload.</div>
+  <div class="tb-sep"></div>
+
+  <!-- Mode -->
+  <span class="tb-lbl">Mode</span>
+  <div class="mode-toggle">
+    <button class="mt-btn on" id="tabS" onclick="setMode('single')">Single</button>
+    <button class="mt-btn"    id="tabB" onclick="setMode('batch')">Batch</button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <!-- Type -->
+  <span class="tb-lbl">Type</span>
+  <div class="type-pills">
+    <button class="tp-btn p" id="btnP" onclick="setType('phase')">📋 Phase</button>
+    <button class="tp-btn"   id="btnE" onclick="setType('em')">⚙️ EM</button>
+  </div>
+  <div class="em-pills" id="emPills" style="display:none">
+    <button class="ep-btn sc" id="subC" onclick="setSub('em_cd')">▶ Command</button>
+    <button class="ep-btn"    id="subS" onclick="setSub('em_sd')">◈ State</button>
+    <button class="ep-btn" disabled>ƒ FBD</button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <!-- Format -->
+  <span class="tb-lbl">Format</span>
+  <div class="fmt-pills">
+    <button class="fp-btn on xl" id="fmtXL" onclick="setFmt('excel')">📊 Excel</button>
+    <button class="fp-btn wd"    id="fmtWD" onclick="setFmt('word')">📄 Word DDS</button>
+    <button class="fp-btn dg"    id="fmtDG" onclick="setFmt('diagram')" title="Phase only">🗺️ SFC Diagram</button>
+  </div>
+
+  <div class="tb-sep"></div>
+
+  <!-- Columns -->
+  <div class="col-trigger" id="colTrigger" onclick="toggleColPop()">
+    ⚙️ Columns
+    <span id="colCount" style="font-size:10px;background:var(--blue50);color:var(--blue900);padding:1px 6px;border-radius:20px;margin-left:2px">7</span>
+    <div class="col-popover" id="colPop" onclick="event.stopPropagation()">
+      <span class="chip fixed"><span class="ck">✓</span> Step</span>
+      <span class="chip fixed"><span class="ck">✓</span> Description</span>
+      <span class="chip fixed"><span class="ck">✓</span> Action</span>
+      <span class="chip on" data-col="qualifier"          onclick="toggleChip(this)"><span class="ck">✓</span> Qualifier</span>
+      <span class="chip on" data-col="expression"         onclick="toggleChip(this)"><span class="ck">✓</span> Expression</span>
+      <span class="chip on" data-col="delay"              onclick="toggleChip(this)"><span class="ck">✓</span> Delay</span>
+      <span class="chip"    data-col="delay_expression"   onclick="toggleChip(this)"><span class="ck">○</span> Delay Expr</span>
+      <span class="chip on" data-col="confirm_expression" onclick="toggleChip(this)"><span class="ck">✓</span> Confirm Expr</span>
+      <span class="chip"    data-col="confirm_timeout"    onclick="toggleChip(this)"><span class="ck">○</span> Timeout</span>
     </div>
   </div>
 
-  <!-- 2. Type -->
-  <div class="card" id="typeCard">
-    <div class="card-head">
-      <div class="step-badge">2</div>
-      <div class="card-title">EXPORT TYPE</div>
-      <span id="autoLbl"></span>
+  <div class="tb-sep"></div>
+
+  <!-- Options -->
+  <div class="opts-inline">
+    <div class="oi-item" onclick="g('togT').classList.toggle('on')">
+      <button class="tog on" id="togT"></button>
+      <span class="oi-label">Transitions</span>
     </div>
-    <div class="card-body">
-      <div class="type-grid">
-        <button class="tbtn tp" id="btnPhase" onclick="setType('phase')">
-          <div class="tico">📋</div>
-          <div><div class="t-name">Phase</div><div class="t-sub">SFC logic blocks</div></div>
-        </button>
-        <button class="tbtn" id="btnEM" onclick="setType('em')">
-          <div class="tico">⚙️</div>
-          <div><div class="t-name">Equip. Module</div><div class="t-sub">EM logic</div></div>
-        </button>
-      </div>
-      <div class="sub-grid" id="emSubs" style="display:none">
-        <button class="sbtn sc" id="subCD" onclick="setSub('em_cd')">▶ Command<br>Driven</button>
-        <button class="sbtn"    id="subSD" onclick="setSub('em_sd')">◈ State<br>Driven</button>
-        <button class="sbtn" disabled>ƒ Function<br>Block</button>
-      </div>
-      <div class="type-hint" id="typeHint"><b>Phase FHX</b> — RUNNING, ABORT/STOP, HOLD, RESTART and other SFC logic blocks.</div>
+    <div class="oi-item" onclick="g('togS').classList.toggle('on')">
+      <button class="tog on" id="togS"></button>
+      <span class="oi-label">Summary</span>
     </div>
   </div>
 
-  <!-- 3. File -->
-  <div class="card">
-    <div class="card-head"><div class="step-badge">3</div><div class="card-title" id="fileLbl">FILE</div></div>
-    <div class="card-body">
-      <label class="drop-zone" id="dropZone">
-        <input type="file" id="fileInput" multiple/>
-        <div class="dz-ring">📂</div>
-        <div class="dz-title">Click to browse or drag &amp; drop</div>
-        <div class="dz-sub" id="dzSub">Single .fhx export file</div>
-      </label>
-      <div class="file-list" id="fileList"></div>
-    </div>
+  <!-- Stats (shown after file loaded) -->
+  <div class="stat-chips" id="statChips" style="display:none">
+    <div class="tb-sep" style="margin:0 4px"></div>
+    <div class="sc-chip"><b id="sA">—</b> <span id="sAL">blocks</span></div>
+    <div class="sc-chip"><b id="sB">—</b> <span id="sBL">steps</span></div>
+    <div class="sc-chip"><b id="sC">—</b> <span id="sCL">actions</span></div>
   </div>
 
-  <!-- 4. Format -->
-  <div class="card">
-    <div class="card-head"><div class="step-badge">4</div><div class="card-title">OUTPUT FORMAT</div></div>
-    <div class="card-body">
-      <div class="fmt-grid" style="grid-template-columns:1fr 1fr 1fr">
-        <button class="fbtn on xl" id="fmtXL" onclick="setFmt('excel')">
-          <div class="fico">📊</div>
-          <div><div class="f-name">Excel</div><div class="f-ext">.xlsx workbook</div></div>
-        </button>
-        <button class="fbtn wd" id="fmtWD" onclick="setFmt('word')">
-          <div class="fico">📄</div>
-          <div><div class="f-name">Word DDS</div><div class="f-ext">.docx document</div></div>
-        </button>
-        <button class="fbtn dg" id="fmtDG" onclick="setFmt('diagram')" title="Phase only — interactive SFC diagram with clickable steps and transitions">
-          <div class="fico">🗺️</div>
-          <div><div class="f-name">SFC Diagram</div><div class="f-ext">.xlsx interactive</div></div>
-        </button>
-      </div>
-      <div id="diagNote" style="display:none;margin-top:8px;font-size:11px;color:var(--purple800);background:var(--purple50);border-left:3px solid var(--purple);padding:7px 10px;border-radius:0 7px 7px 0">
-        🗺️ <b>SFC Diagram</b> — generates a visual flow chart of steps and transitions. Click any step (blue) or transition (green) to jump to its detail. Phase FHX only.
-      </div>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card-head"><div class="step-badge">5</div><div class="card-title">OUTPUT COLUMNS</div></div>
-    <div class="card-body">
-      <div class="chips">
-        <span class="chip fixed"><span class="ck">✓</span> Step</span>
-        <span class="chip fixed"><span class="ck">✓</span> Description</span>
-        <span class="chip fixed"><span class="ck">✓</span> Action</span>
-        <span class="chip on" data-col="qualifier"          onclick="toggleChip(this)"><span class="ck">✓</span> Qualifier</span>
-        <span class="chip on" data-col="expression"         onclick="toggleChip(this)"><span class="ck">✓</span> Expression</span>
-        <span class="chip on" data-col="delay"              onclick="toggleChip(this)"><span class="ck">✓</span> Delay</span>
-        <span class="chip"    data-col="delay_expression"   onclick="toggleChip(this)"><span class="ck">○</span> Delay Expr</span>
-        <span class="chip on" data-col="confirm_expression" onclick="toggleChip(this)"><span class="ck">✓</span> Confirm Expr</span>
-        <span class="chip"    data-col="confirm_timeout"    onclick="toggleChip(this)"><span class="ck">○</span> Timeout</span>
-      </div>
-    </div>
-  </div>
+  <!-- Process button -->
+  <button class="proc-btn" id="procBtn" onclick="run()" disabled>
+    <svg viewBox="0 0 14 14"><polygon points="3,1 13,7 3,13"/></svg>
+    Process
+  </button>
 
-  <!-- 6. Options -->
-  <div class="card">
-    <div class="card-head"><div class="step-badge">6</div><div class="card-title">OPTIONS</div></div>
-    <div class="card-body">
-      <div class="opt" id="rowTrans">
-        <div><div class="o-label">Transitions under steps</div><div class="o-sub">Show outgoing transitions inline</div></div>
-        <button class="tog on" id="togTrans" onclick="this.classList.toggle('on')"></button>
-      </div>
-      <div class="opt">
-        <div><div class="o-label">Summary sheet</div><div class="o-sub">Overview tab with all logic blocks</div></div>
-        <button class="tog on" id="togSumm" onclick="this.classList.toggle('on')"></button>
-      </div>
-    </div>
-  </div>
+</div>
 
-  <!-- Stats -->
-  <div class="card">
-    <div class="card-body">
-      <div class="stats">
-        <div class="stat"><div class="stat-n" id="sA">—</div><div class="stat-l" id="sAL">Blocks</div></div>
-        <div class="stat"><div class="stat-n" id="sB">—</div><div class="stat-l" id="sBL">Steps</div></div>
-        <div class="stat"><div class="stat-n" id="sC">—</div><div class="stat-l" id="sCL">Actions</div></div>
+<!-- CONTENT -->
+<div class="content" id="content">
+
+  <!-- Welcome -->
+  <div class="welcome" id="welcomeEl">
+    <div class="wlc-icon">📊</div>
+    <div class="wlc-title">DeltaV FHX → Excel / Word Converter</div>
+    <div class="wlc-sub">Load a DeltaV phase or equipment module export file using the toolbar above, configure your output, and click Process.</div>
+    <div class="wlc-steps">
+      <div class="wlc-step"><div class="wlc-num">1</div><div class="wlc-stitle">Load file</div><div class="wlc-sdesc">Drop or browse a .fhx file in the toolbar</div></div>
+      <div class="wlc-step"><div class="wlc-num">2</div><div class="wlc-stitle">Select type</div><div class="wlc-sdesc">Auto-detected — adjust if needed</div></div>
+      <div class="wlc-step"><div class="wlc-num">3</div><div class="wlc-stitle">Choose format</div><div class="wlc-sdesc">Excel, Word DDS, or SFC Diagram</div></div>
+      <div class="wlc-step"><div class="wlc-num">4</div><div class="wlc-stitle">Download</div><div class="wlc-sdesc">Styled output ready instantly</div></div>
+    </div>
+    <div class="feat-row">
+      <div class="feat-card" onclick="setFmt('excel')">
+        <div class="fi">📊</div>
+        <div><div class="ft">Excel Workbook</div><div class="fd">Styled steps, actions and transitions with colour-coded sheets</div></div>
+      </div>
+      <div class="feat-card" onclick="setFmt('word')">
+        <div class="fi">📄</div>
+        <div><div class="ft">Word DDS</div><div class="fd">Pharma-style design description with sign-off table</div></div>
+      </div>
+      <div class="feat-card" onclick="window.location='/diagram'">
+        <div class="fi">🗺️</div>
+        <div><div class="ft">SFC Diagram <span class="new-badge">NEW</span></div><div class="fd">Interactive flow diagram — click steps to inspect actions</div></div>
       </div>
     </div>
   </div>
 
-  <div class="run-wrap">
-    <button class="run-btn" id="runBtn" onclick="run()" disabled>
-      <svg viewBox="0 0 16 16"><polygon points="4,2 14,8 4,14"/></svg>
-      Process file
-    </button>
-  </div>
-
-</div><!-- /left -->
-
-<!-- RIGHT MAIN -->
-<div class="right">
-
-  <!-- Top banner -->
-  <div class="right-top">
-    <div class="rt-title">DeltaV FHX → Excel / Word Converter</div>
-    <div class="rt-sub">Convert DeltaV phase and equipment module exports to structured Excel workbooks or Word design specifications.</div>
-    <div class="feature-strip">
-      <div class="feat blue">
-        <div class="feat-icon">🔍</div>
-        <div>
-          <div class="feat-title">Auto-detection</div>
-          <div class="feat-desc">Phase, Command Driven and State Driven EM types detected automatically on upload.</div>
+  <!-- Log + Result (hidden until run) -->
+  <div id="logWrap" style="display:none;flex-direction:column;flex:1;overflow-y:auto;padding-top:8px">
+    <div class="log-card" id="logCard">
+      <div class="lc-head">
+        <div class="lc-dots">
+          <div class="lc-dot" style="background:#ff5f57"></div>
+          <div class="lc-dot" style="background:#febc2e"></div>
+          <div class="lc-dot" style="background:#28c840"></div>
         </div>
-      </div>
-      <div class="feat green">
-        <div class="feat-icon">📦</div>
-        <div>
-          <div class="feat-title">Batch processing</div>
-          <div class="feat-desc">Upload multiple FHX files at once. Each is detected individually and combined into one workbook.</div>
-        </div>
-      </div>
-      <div class="feat purple" style="cursor:pointer" onclick="window.location='/diagram'" title="Open interactive SFC diagram viewer">
-        <div class="feat-icon">🗺️</div>
-        <div>
-          <div class="feat-title">SFC Diagram Viewer <span style="font-size:10px;background:var(--purple100);color:var(--purple800);padding:1px 6px;border-radius:20px;margin-left:4px;vertical-align:middle">NEW</span></div>
-          <div class="feat-desc">Interactive SFC flow diagram. Click any step or transition to inspect actions and expressions. <b style="color:var(--purple800)">Click to open →</b></div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Scrollable content area -->
-  <div class="progress-area" id="progressArea">
-
-    <!-- Welcome state (shown before any processing) -->
-    <div class="welcome" id="welcomeState">
-      <div class="welcome-icon">📊</div>
-      <div class="welcome-title">Ready to convert</div>
-      <div class="welcome-sub">Select your settings on the left, drop your FHX file, and click <strong>Process file</strong> to generate your output.</div>
-      <div class="welcome-steps">
-        <div class="ws"><div class="ws-num">1</div><div><div class="ws-text">Choose mode</div><div class="ws-sub">Single file or batch</div></div></div>
-        <div class="ws"><div class="ws-num">2</div><div><div class="ws-text">Drop your file</div><div class="ws-sub">Auto-detects type</div></div></div>
-        <div class="ws"><div class="ws-num">3</div><div><div class="ws-text">Pick format</div><div class="ws-sub">Excel or Word DDS</div></div></div>
-        <div class="ws"><div class="ws-num">4</div><div><div class="ws-text">Download</div><div class="ws-sub">Styled output ready</div></div></div>
-      </div>
-    </div>
-
-    <!-- Log card (shown during / after processing) -->
-    <div class="log-card" id="logCard" style="display:none">
-      <div class="log-card-head">
-        <div class="log-card-title">
-          <div class="dots">
-            <div class="dot" style="background:#ff5f57"></div>
-            <div class="dot" style="background:#febc2e"></div>
-            <div class="dot" style="background:#28c840"></div>
-          </div>
-          Processing log
-        </div>
+        <div class="lc-title" id="lcTitle">Processing log</div>
         <div class="lc-badge" id="lcBadge">IDLE</div>
       </div>
-      <div class="log-prog"><div class="log-prog-fill" id="progFill"></div></div>
-      <div class="log-body" id="logBody"></div>
+      <div class="lc-prog"><div class="lc-prog-fill" id="progFill"></div></div>
+      <div class="lc-body" id="logBody"></div>
     </div>
-
-    <!-- Result card (shown after success) -->
     <div class="result-card" id="resultCard" style="display:none">
-      <div class="result-card-head">
+      <div class="rc-head">
         <div class="rc-icon">✅</div>
-        <div class="rc-title" id="rcTitle">Output ready</div>
+        <div class="rc-title" id="rcTitle">Ready</div>
       </div>
-      <div class="result-card-body">
+      <div class="rc-body">
         <div class="pills" id="pillsEl"></div>
         <div class="dl-row" id="dlRow"></div>
       </div>
     </div>
+  </div>
 
-  </div><!-- /progress-area -->
-
-</div><!-- /right -->
-</div><!-- /shell -->
+</div>
 
 <script>
 var mode='single',fhxType='phase',outFmt='excel';
 var fileMap={},resultBlob=null,resultName='output',t0=null;
-var HINTS={
-  phase:'<b>Phase FHX</b> — RUNNING, ABORT/STOP, HOLD, RESTART and other SFC logic blocks.',
-  em_cd:'<b>Command Driven EM</b> — one sheet per command (HOLD, Startup, Shutdown, Run…).',
-  em_sd:'<b>State Driven EM</b> — state table with device positions (OPEN/CLOSE) per state.',
-};
-var TL={phase:'PHASE',em_cd:'CMD EM',em_sd:'STATE EM'};
-var TAG={
-  phase:{bg:'#dbeafe',color:'#1e3a8a'},
-  em_cd:{bg:'#fed7aa',color:'#7c2d12'},
-  em_sd:{bg:'#ede9fe',color:'#4c1d95'},
-};
 function g(id){return document.getElementById(id);}
+
+// close col popover on outside click
+document.addEventListener('click',function(e){
+  if(!g('colTrigger').contains(e.target)){
+    g('colPop').classList.remove('show');
+    g('colTrigger').classList.remove('open');
+  }
+});
 
 function setMode(m){
   mode=m;
-  g('tabSingle').className='mtab'+(m==='single'?' on':'');
-  g('tabBatch').className ='mtab'+(m==='batch'?' on':'');
-  g('typeCard').style.display=m==='single'?'':'none';
-  g('fileLbl').textContent=m==='batch'?'FILES':'FILE';
-  g('dzSub').textContent=m==='batch'?'Multiple .fhx files — type auto-detected':'Single .fhx export file';
-  g('modeNote').innerHTML=m==='batch'
-    ?'Convert <b>multiple FHX files</b> — each auto-detected, combined into one workbook.'
-    :'Convert <b>one FHX file</b> — type is auto-detected on upload.';
-  g('sAL').textContent=m==='batch'?'Files':'Blocks';
-  clearFiles();
+  g('tabS').className='mt-btn'+(m==='single'?' on':'');
+  g('tabB').className='mt-btn'+(m==='batch'?' on':'');
+  clearFiles(null);
 }
 function setType(t){
-  g('btnPhase').className='tbtn'+(t==='phase'?' tp':'');
-  g('btnEM').className   ='tbtn'+(t==='em'?' te':'');
-  g('emSubs').style.display=t==='em'?'grid':'none';
+  g('btnP').className='tp-btn'+(t==='phase'?' p':'');
+  g('btnE').className='tp-btn'+(t==='em'?' e':'');
+  g('emPills').style.display=t==='em'?'flex':'none';
   if(t==='phase'){fhxType='phase';}else{setSub('em_cd');return;}
-  updateHint();
 }
 function setSub(s){
   fhxType=s;
-  g('subCD').className='sbtn'+(s==='em_cd'?' sc':'');
-  g('subSD').className='sbtn'+(s==='em_sd'?' ss':'');
-  updateHint();
-}
-function updateHint(){
-  g('typeHint').innerHTML=HINTS[fhxType]||'';
-  var sd=fhxType==='em_sd';
-  g('rowTrans').className='opt'+(sd?' hidden':'');
-  g('sAL').textContent=fhxType==='em_sd'?'EM(s)':fhxType==='em_cd'?'Cmds':'Blocks';
-  g('sBL').textContent=fhxType==='em_sd'?'States':'Steps';
-  g('sCL').textContent=fhxType==='em_sd'?'Devices':'Actions';
+  g('subC').className='ep-btn'+(s==='em_cd'?' sc':'');
+  g('subS').className='ep-btn'+(s==='em_sd'?' ss':'');
 }
 function setFmt(f){
   outFmt=f;
-  g('fmtXL').className='fbtn xl'+(f==='excel'?' on':'');
-  g('fmtWD').className='fbtn wd'+(f==='word'?' on':'');
-  g('fmtDG').className='fbtn dg'+(f==='diagram'?' on':'');
-  // SFC diagram only works for Phase
-  var diagNote=g('diagNote');
-  if(diagNote) diagNote.style.display=f==='diagram'?'block':'none';
+  g('fmtXL').className='fp-btn xl'+(f==='excel'?' on':'');
+  g('fmtWD').className='fp-btn wd'+(f==='word'?' on':'');
+  g('fmtDG').className='fp-btn dg'+(f==='diagram'?' on':'');
+}
+function toggleColPop(){
+  var pop=g('colPop'),tri=g('colTrigger');
+  var open=pop.classList.toggle('show');
+  tri.classList.toggle('open',open);
 }
 function toggleChip(el){
   el.classList.toggle('on');
   el.querySelector('.ck').textContent=el.classList.contains('on')?'✓':'○';
+  var n=document.querySelectorAll('.chip[data-col].on').length+3;
+  g('colCount').textContent=n;
 }
 function getCols(){
   var c=['step','description','action'];
@@ -752,11 +530,17 @@ function getCols(){
 function optOn(id){return g(id).classList.contains('on');}
 function sz(b){return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB';}
 
-var dz=g('dropZone'),fi=g('fileInput');
+// FILE HANDLING
+var dz=g('fileSlot'),fi=g('fileInput');
 dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('over');});
 dz.addEventListener('dragleave',function(){dz.classList.remove('over');});
-dz.addEventListener('drop',function(e){e.preventDefault();dz.classList.remove('over');addFiles(e.dataTransfer.files);});
+dz.addEventListener('drop',function(e){
+  e.preventDefault();dz.classList.remove('over');addFiles(e.dataTransfer.files);
+});
 fi.addEventListener('change',function(e){addFiles(e.target.files);});
+
+var TL={phase:'PHASE',em_cd:'CMD EM',em_sd:'STATE EM'};
+var TAG={phase:{bg:'#dbeafe',color:'#1e3a8a'},em_cd:{bg:'#fed7aa',color:'#7c2d12'},em_sd:{bg:'#ede9fe',color:'#4c1d95'}};
 
 function addFiles(list){
   if(!list||!list.length)return;
@@ -765,68 +549,75 @@ function addFiles(list){
   arr.forEach(function(f){
     if(fileMap[f.name])return;
     fileMap[f.name]={file:f,type:null};
-    renderItem(f.name);
     var fd=new FormData();fd.append('file',f,f.name);
     fetch('/detect',{method:'POST',body:fd})
       .then(function(r){return r.text().then(function(t){try{return JSON.parse(t);}catch(e){return{type:'phase',fb_count:0,steps:0,actions:0};}});})
       .then(function(d){
         var t=d.type||'phase';
         fileMap[f.name].type=t;
-        if(mode==='single'){applyDetected(t);g('sA').textContent=d.fb_count||1;g('sB').textContent=d.steps||'—';g('sC').textContent=d.actions||'—';}
-        else{g('sA').textContent=Object.keys(fileMap).length;}
-        updateItem(f.name,t,sz(f.size));checkReady();
+        if(mode==='single'){
+          applyDetected(t);
+          g('sA').textContent=d.fb_count||1;
+          g('sB').textContent=d.steps||'—';
+          g('sC').textContent=d.actions||'—';
+          g('statChips').style.display='flex';
+          g('sAL').textContent=t==='em_sd'?'ems':t==='em_cd'?'cmds':'blocks';
+          g('sBL').textContent=t==='em_sd'?'states':'steps';
+          g('sCL').textContent=t==='em_sd'?'devices':'actions';
+        } else {
+          g('sA').textContent=Object.keys(fileMap).length;
+          g('statChips').style.display='flex';
+        }
+        updateFileSlot();checkReady();
       })
-      .catch(function(){fileMap[f.name].type=fhxType;updateItem(f.name,fhxType,sz(f.size));checkReady();});
+      .catch(function(){fileMap[f.name].type=fhxType;updateFileSlot();checkReady();});
   });
-}
-function applyDetected(t){
-  fhxType=t;
-  var style={phase:'background:#dbeafe;color:#1e3a8a',em_cd:'background:#fed7aa;color:#7c2d12',em_sd:'background:#ede9fe;color:#4c1d95'};
-  g('autoLbl').innerHTML='<span class="auto-badge '+t+'" style="'+style[t]+'">AUTO · '+(TL[t]||t)+'</span>';
-  g('btnPhase').className='tbtn'+(t==='phase'?' tp':'');
-  g('btnEM').className   ='tbtn'+(t!=='phase'?' te':'');
-  g('emSubs').style.display=t!=='phase'?'grid':'none';
-  g('subCD').className='sbtn'+(t==='em_cd'?' sc':'');
-  g('subSD').className='sbtn'+(t==='em_sd'?' ss':'');
-  updateHint();
-}
-function renderItem(name){
-  var div=document.createElement('div');
-  div.id='fi-'+btoa(name).replace(/[^a-z0-9]/gi,'');
-  div.className='fitem detecting';
-  div.innerHTML='<div class="fi-dot" style="background:#d97706"></div>'+
-    '<div class="fi-name" title="'+name+'">'+name+'</div>'+
-    '<div class="fi-tag" style="background:#fffbeb;color:#92400e">detecting…</div>'+
-    '<button class="fi-rm" onclick="removeFile(\''+name.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">✕</button>';
-  g('fileList').appendChild(div);
-}
-function updateItem(name,type,meta){
-  var el=document.getElementById('fi-'+btoa(name).replace(/[^a-z0-9]/gi,''));
-  if(!el)return;
-  el.className='fitem ready';
-  var t=TAG[type]||TAG.phase;
-  el.querySelector('.fi-dot').style.background=t.color;
-  var tg=el.querySelector('.fi-tag');
-  tg.style.background=t.bg;tg.style.color=t.color;
-  tg.textContent=(TL[type]||type)+' · '+meta;
-}
-function removeFile(name){
-  delete fileMap[name];
-  var el=document.getElementById('fi-'+btoa(name).replace(/[^a-z0-9]/gi,''));
-  if(el)el.remove();
-  if(mode==='batch')g('sA').textContent=Object.keys(fileMap).length||'—';
-  checkReady();
-}
-function clearFiles(){
-  fileMap={};g('fileList').innerHTML='';fi.value='';
-  g('sA').textContent='—';g('sB').textContent='—';g('sC').textContent='—';
-  g('autoLbl').innerHTML='';checkReady();
-}
-function checkReady(){
-  var items=Object.values(fileMap);
-  g('runBtn').disabled=!(items.length>0&&items.every(function(x){return x.type;}));
+  updateFileSlot();
 }
 
+function applyDetected(t){
+  fhxType=t;
+  // Auto-update badge in header
+  var names={phase:'PHASE',em_cd:'CMD EM',em_sd:'STATE EM'};
+  g('hPillTxt').textContent='Detected: '+(names[t]||t);
+  g('hPill').className='h-pill on';
+  g('btnP').className='tp-btn'+(t==='phase'?' p':'');
+  g('btnE').className='tp-btn'+(t!=='phase'?' e':'');
+  g('emPills').style.display=t!=='phase'?'flex':'none';
+  if(t!=='phase'){g('subC').className='ep-btn'+(t==='em_cd'?' sc':'');g('subS').className='ep-btn'+(t==='em_sd'?' ss':'');}
+}
+
+function updateFileSlot(){
+  var items=Object.values(fileMap);
+  if(!items.length)return;
+  var slot=g('fileSlot');
+  slot.classList.add('has-file');
+  var names=items.map(function(i){return i.file.name;});
+  var txt=items.length===1?names[0]:items.length+' files';
+  g('fsText').textContent=txt;
+  g('hFile').textContent=txt;
+  g('fsClear').style.display='flex';
+}
+
+function clearFiles(e){
+  if(e){e.preventDefault();e.stopPropagation();}
+  fileMap={};fi.value='';
+  g('fileSlot').classList.remove('has-file');
+  g('fsText').textContent='Drop or click to load .fhx';
+  g('hFile').textContent='No file loaded';
+  g('fsClear').style.display='none';
+  g('statChips').style.display='none';
+  g('hPill').className='h-pill';g('hPillTxt').textContent='Ready';
+  g('procBtn').disabled=true;
+  g('resultCard').style.display='none';
+}
+
+function checkReady(){
+  var items=Object.values(fileMap);
+  g('procBtn').disabled=!(items.length>0&&items.every(function(x){return x.type;}));
+}
+
+// LOGGING
 function ts(){
   if(!t0)return'--:--';
   var d=Date.now()-t0;
@@ -844,33 +635,28 @@ function setBadge(s){
   el.className='lc-badge'+(s==='run'?' run':s==='done'?' done':s==='err'?' err':'');
   el.textContent=m[s]||s.toUpperCase();
 }
-function setHeader(txt,on){g('hLbl').textContent=txt;g('hDot').className='h-dot'+(on?' on':'');}
-
 function showLog(){
-  g('welcomeState').style.display='none';
-  g('logCard').style.display='block';
+  g('welcomeEl').style.display='none';
+  g('logWrap').style.display='flex';
   g('resultCard').style.display='none';
 }
-function showResult(){
-  g('resultCard').style.display='block';
-}
 
+// RUN
 function run(){
   var items=Object.values(fileMap);
   if(!items.length)return;
   t0=Date.now();
   g('logBody').innerHTML='';g('pillsEl').innerHTML='';g('dlRow').innerHTML='';
   resultBlob=null;
-  var btn=g('runBtn');btn.disabled=true;btn.className='run-btn busy';
-  btn.innerHTML='<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="3" y="3" width="3" height="10"/><rect x="10" y="3" width="3" height="10"/></svg> Processing…';
-  setBadge('run');setProg(5);setHeader('Processing…',true);
-  showLog();
+  var btn=g('procBtn');btn.disabled=true;btn.className='proc-btn busy';
+  btn.innerHTML='<svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><rect x="2" y="2" width="4" height="10"/><rect x="8" y="2" width="4" height="10"/></svg> Processing…';
+  setBadge('run');setProg(5);showLog();
 
-  lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
-  lg('FHX → '+(outFmt==='word'?'WORD DDS':'EXCEL')+' · '+(mode==='batch'?'BATCH · ':'')+new Date().toLocaleTimeString(),'head');
-  lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
-
-  var DL_SVG='<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="8" y1="1" x2="8" y2="10"/><polyline points="4,6 8,10 12,6"/><line x1="2" y1="13" x2="14" y2="13"/></svg>';
+  var DL_SVG='<svg viewBox="0 0 14 14" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="7" y1="1" x2="7" y2="9"/><polyline points="3,5 7,9 11,5"/><line x1="1" y1="12" x2="13" y2="12"/></svg>';
+  var tnames={phase:'PHASE',em_cd:'CMD DRIVEN EM',em_sd:'STATE DRIVEN EM'};
+  lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
+  lg('FHX → '+(outFmt==='word'?'WORD DDS':outFmt==='diagram'?'SFC DIAGRAM':'EXCEL')+' · '+new Date().toLocaleTimeString(),'head');
+  lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
 
   function handleSingle(resp){
     setProg(80);lg('Server responded…','dim');
@@ -879,19 +665,18 @@ function run(){
     if(!resp.ok){return resp.text().then(function(t){var m='Server error '+resp.status;try{m=JSON.parse(t).error||m;}catch(e){}throw new Error(m);});}
     return resp.blob().then(function(blob){
       resultBlob=blob;
-      var isWord=outFmt==='word';
-      var isDiag=outFmt==='diagram';
-      resultName=Object.keys(fileMap)[0].replace(/\.fhx$/i,'')+(isWord?'_DDS.docx':isDiag?'_SFC_Diagram.xlsx':'_Logic.xlsx');
-      setProg(100);setBadge('done');setHeader('Done',false);
-      lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
+      var isW=outFmt==='word',isDG=outFmt==='diagram';
+      resultName=Object.keys(fileMap)[0].replace(/\.fhx$/i,'')+(isW?'_DDS.docx':isDG?'_SFC_Diagram.xlsx':'_Logic.xlsx');
+      setProg(100);setBadge('done');
+      lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
       lg('Done · elapsed '+ts(),'ok');
-      lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
-      g('rcTitle').textContent=isWord?'Word DDS ready':isDiag?'SFC Diagram ready':'Excel workbook ready';
+      lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
+      g('rcTitle').textContent=isW?'Word DDS ready':isDG?'SFC Diagram ready':'Excel workbook ready';
       var b=document.createElement('button');
-      b.className='dl-btn '+(isWord?'dl-wd':isDiag?'dl-wd':'dl-xl');
-      b.innerHTML=DL_SVG+' Download '+(isWord?'Word DDS':isDiag?'SFC Diagram':'Excel');
+      b.className='dl-btn '+(isW||isDG?'dl-wd':'dl-xl');
+      b.innerHTML=DL_SVG+' Download '+(isW?'Word DDS':isDG?'SFC Diagram':'Excel');
       b.onclick=function(){dlBlob(resultBlob,resultName);};
-      g('dlRow').appendChild(b);showResult();resetBtn();
+      g('dlRow').appendChild(b);g('resultCard').style.display='block';resetBtn();
     });
   }
   function handleBatch(resp){
@@ -905,45 +690,49 @@ function run(){
     return resp.blob().then(function(blob){
       resultBlob=blob;var isW=outFmt==='word';
       resultName='FHX_Batch_'+(new Date().toISOString().slice(0,10))+(isW?'.zip':'.xlsx');
-      setProg(100);setBadge('done');setHeader('Done',false);
-      lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
+      setProg(100);setBadge('done');
+      lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
       lg('Batch done · '+cnt+' files · elapsed '+ts(),'ok');
-      lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
+      lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
       g('rcTitle').textContent='Batch ready ('+cnt+' files)';
       var b=document.createElement('button');b.className='dl-btn '+(isW?'dl-wd':'dl-xl');
-      b.innerHTML=DL_SVG+' Download '+(isW?'ZIP (Word)':'Combined Excel');
+      b.innerHTML=DL_SVG+' Download '+(isW?'ZIP':'Combined Excel');
       b.onclick=function(){dlBlob(resultBlob,resultName);};
-      g('dlRow').appendChild(b);showResult();resetBtn();
+      g('dlRow').appendChild(b);g('resultCard').style.display='block';resetBtn();
     });
   }
   function handleErr(err){
-    lg('Error: '+err.message,'err');setBadge('err');setProg(0);setHeader('Error',false);resetBtn();
+    lg('Error: '+err.message,'err');setBadge('err');setProg(0);resetBtn();
   }
   function resetBtn(){
-    var btn=g('runBtn');btn.disabled=false;btn.className='run-btn';
-    btn.innerHTML='<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="4,2 14,8 4,14"/></svg> Process file';
+    var btn=g('procBtn');btn.disabled=false;btn.className='proc-btn';
+    btn.innerHTML='<svg viewBox="0 0 14 14" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3,1 13,7 3,13"/></svg> Process';
   }
 
-  if(mode==='single'&&items.length===1){
-    var item=items[0];
+  if(mode==='single'&&Object.keys(fileMap).length===1){
+    var item=Object.values(fileMap)[0];
     lg('File: '+item.file.name+' ('+sz(item.file.size)+')','ok');
     lg('Type: '+(TL[item.type]||item.type),'dim');
-    lg('Format: '+(outFmt==='word'?'Word DDS':'Excel'),'dim');
-    lg('Uploading to server…','step');setProg(25);
+    lg('Format: '+(outFmt==='word'?'Word DDS':outFmt==='diagram'?'SFC Diagram':'Excel'),'dim');
+    lg('Uploading…','step');setProg(25);
     var fd=new FormData();
-    fd.append('file',item.file,item.file.name);fd.append('fhx_type',item.type||fhxType);
+    fd.append('file',item.file,item.file.name);
+    fd.append('fhx_type',item.type||fhxType);
     fd.append('format',outFmt);fd.append('columns',getCols());
-    fd.append('transitions',optOn('togTrans')?'true':'false');
-    fd.append('summary',optOn('togSumm')?'true':'false');fd.append('expressions','true');
+    fd.append('transitions',optOn('togT')?'true':'false');
+    fd.append('summary',optOn('togS')?'true':'false');
+    fd.append('expressions','true');
     fetch('/convert',{method:'POST',body:fd}).then(handleSingle).catch(handleErr);
-  }else{
+  } else {
+    var items=Object.values(fileMap);
     items.forEach(function(item){lg('  · '+item.file.name+' ['+TL[item.type]+']','dim');});
     lg(items.length+' file(s) uploading…','step');setProg(20);
     var fd2=new FormData();
     items.forEach(function(item){fd2.append('files',item.file,item.file.name);});
     fd2.append('format',outFmt);fd2.append('columns',getCols());
-    fd2.append('transitions',optOn('togTrans')?'true':'false');
-    fd2.append('summary',optOn('togSumm')?'true':'false');fd2.append('expressions','true');
+    fd2.append('transitions',optOn('togT')?'true':'false');
+    fd2.append('summary',optOn('togS')?'true':'false');
+    fd2.append('expressions','true');
     fetch('/batch',{method:'POST',body:fd2}).then(handleBatch).catch(handleErr);
   }
 }
