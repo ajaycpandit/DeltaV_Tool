@@ -641,51 +641,89 @@ def _to_grid(x, y, x_min, y_min):
     row = max(2, round((y - y_min) * SCALE_D) + 2)
     return row, col
 
+def _safe_merge_and_write(ws, r1, c1, r2, c2, value, font, fill, alignment, border):
+    """
+    Safely merge a cell region and write to the top-left cell.
+    Handles the case where cells are already part of another merge region,
+    which causes openpyxl to return a MergedCell proxy (read-only).
+    """
+    # Remove any existing merges that overlap this region
+    to_remove = []
+    for m in list(ws.merged_cells.ranges):
+        if not (m.max_row < r1 or m.min_row > r2 or
+                m.max_col < c1 or m.min_col > c2):
+            to_remove.append(str(m))
+    for addr in to_remove:
+        try:
+            ws.unmerge_cells(addr)
+        except Exception:
+            pass
+
+    # Now merge
+    try:
+        if r1 != r2 or c1 != c2:
+            ws.merge_cells(start_row=r1, start_column=c1,
+                           end_row=r2, end_column=c2)
+    except Exception:
+        pass
+
+    # Write directly to the internal cell dict to bypass MergedCell proxy
+    from openpyxl.cell.cell import Cell
+    key = (r1, c1)
+    if key not in ws._cells:
+        ws._cells[key] = Cell(ws, row=r1, column=c1)
+    cell = ws._cells[key]
+    cell.value     = value
+    cell.font      = font
+    cell.fill      = fill
+    cell.alignment = alignment
+    cell.border    = border
+    return cell
+
+
 def _draw_step_cell(ws, row, col, name, n_actions, detail_sheet, detail_row, is_init):
     r1, c1 = row, col
     r2, c2 = row + STEP_H_D - 1, col + STEP_W_D - 1
-    fill = PatternFill('solid', start_color='0C4A6E') if is_init \
-           else PatternFill('solid', start_color='1E40AF')
-    try:
-        ws.merge_cells(start_row=r1, start_column=c1, end_row=r2, end_column=c2)
-    except Exception:
-        pass
-    cell = ws.cell(row=r1, column=c1)
-    cell.value = '=HYPERLINK("#\'{}\'!A{}","{} ({} act)")'.format(
-        detail_sheet, detail_row, name, n_actions)
-    cell.font      = Font(name='Calibri', bold=True, size=8, color='FFFFFF')
-    cell.fill      = fill
-    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    cell.border    = Border(
-        left=Side(style='medium', color='BFDBFE'),
-        right=Side(style='medium', color='BFDBFE'),
-        top=Side(style='medium', color='BFDBFE'),
-        bottom=Side(style='medium', color='BFDBFE'),
+    fill_color = '0C447C' if is_init else '185FA5'
+    border_color = 'B5D4F4'
+    _safe_merge_and_write(
+        ws, r1, c1, r2, c2,
+        value='=HYPERLINK("#\'{}\'!A{}","{} ({} act)")'.format(
+            detail_sheet, detail_row, name, n_actions),
+        font=Font(name='Calibri', bold=True, size=8, color='FFFFFF'),
+        fill=PatternFill('solid', start_color=fill_color),
+        alignment=Alignment(horizontal='center', vertical='center', wrap_text=True),
+        border=Border(
+            left=Side(style='medium', color=border_color),
+            right=Side(style='medium', color=border_color),
+            top=Side(style='medium', color=border_color),
+            bottom=Side(style='medium', color=border_color),
+        )
     )
     return r1, c1, r2, c2
+
 
 def _draw_trans_cell(ws, row, col, name, detail_sheet, detail_row, is_end):
     r1, c1 = row, col
     r2, c2 = row + TRAN_H_D - 1, col + TRAN_W_D - 1
-    fill = PatternFill('solid', start_color='7F1D1D') if is_end \
-           else PatternFill('solid', start_color='065F46')
-    try:
-        ws.merge_cells(start_row=r1, start_column=c1, end_row=r2, end_column=c2)
-    except Exception:
-        pass
-    cell = ws.cell(row=r1, column=c1)
-    cell.value = '=HYPERLINK("#\'{}\'!A{}","\u25c6 {}")'.format(
-        detail_sheet, detail_row, name)
-    cell.font      = Font(name='Calibri', bold=True, size=7, color='FFFFFF')
-    cell.fill      = fill
-    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-    cell.border    = Border(
-        left=Side(style='thin', color='6EE7B7'),
-        right=Side(style='thin', color='6EE7B7'),
-        top=Side(style='thin', color='6EE7B7'),
-        bottom=Side(style='thin', color='6EE7B7'),
+    fill_color = '993C1D' if is_end else '3D6B4F'
+    border_color = 'F5C4B3' if is_end else '9FE1CB'
+    _safe_merge_and_write(
+        ws, r1, c1, r2, c2,
+        value='=HYPERLINK("#\'{}\'!A{}","\u25c6 {}")'.format(
+            detail_sheet, detail_row, name),
+        font=Font(name='Calibri', bold=True, size=7, color='FFFFFF'),
+        fill=PatternFill('solid', start_color=fill_color),
+        alignment=Alignment(horizontal='center', vertical='center', wrap_text=True),
+        border=Border(
+            left=Side(style='thin', color=border_color),
+            right=Side(style='thin', color=border_color),
+            top=Side(style='thin', color=border_color),
+            bottom=Side(style='thin', color=border_color),
+        )
     )
     return r1, c1, r2, c2
+
 
 def _draw_arrow(ws, from_row, to_row, mid_col, bg_fill):
     for r in range(from_row + 1, to_row):
@@ -693,6 +731,7 @@ def _draw_arrow(ws, from_row, to_row, mid_col, bg_fill):
         if cell.value is None:
             cell.fill  = bg_fill
             cell.value = ''
+
 
 def build_sfc_diagram_sheet(wb, label, data, detail_name):
     """Build the _D diagram sheet for one logic block."""
