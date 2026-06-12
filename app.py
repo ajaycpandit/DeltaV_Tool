@@ -86,21 +86,21 @@ def parse_sfc(sfc_block):
 # SHARED EXCEL STYLES
 # ═══════════════════════════════════════════════════════════════════════════════
 
-NAVY    = PatternFill('solid', start_color='0D1B4B')
-BLUE_H  = PatternFill('solid', start_color='1F3864')
-BLUE_S  = PatternFill('solid', start_color='2E75B6')
-TEAL_S  = PatternFill('solid', start_color='1F5C6B')
-GREEN_S = PatternFill('solid', start_color='4E7F2C')
-ORANGE_H= PatternFill('solid', start_color='7B3F00')
-OPEN_F  = PatternFill('solid', start_color='C6EFCE')
-CLOSE_F = PatternFill('solid', start_color='FFCCCC')
-DC_F    = PatternFill('solid', start_color='FFFFCC')
-ALT     = PatternFill('solid', start_color='D9E1F2')
-ALT_G   = PatternFill('solid', start_color='E2EFDA')
-ALTG2   = PatternFill('solid', start_color='F2F9EE')
-ALT_ROW = PatternFill('solid', start_color='F2F2F2')
+NAVY    = PatternFill('solid', start_color='1E3A5F')
+BLUE_H  = PatternFill('solid', start_color='2C4A72')
+BLUE_S  = PatternFill('solid', start_color='3B6EA8')
+TEAL_S  = PatternFill('solid', start_color='2B6070')
+GREEN_S = PatternFill('solid', start_color='3D6B4F')
+ORANGE_H= PatternFill('solid', start_color='6B5230')
+OPEN_F  = PatternFill('solid', start_color='D4EDDA')
+CLOSE_F = PatternFill('solid', start_color='F5DDDD')
+DC_F    = PatternFill('solid', start_color='FDFAE8')
+ALT     = PatternFill('solid', start_color='EDF2F8')
+ALT_G   = PatternFill('solid', start_color='EDF5EC')
+ALTG2   = PatternFill('solid', start_color='F4F9F3')
+ALT_ROW = PatternFill('solid', start_color='F5F5F3')
 WHITE   = PatternFill('solid', start_color='FFFFFF')
-DIS_F   = PatternFill('solid', start_color='DDDDDD')
+DIS_F   = PatternFill('solid', start_color='F0F0EE')
 THIN    = Side(style='thin', color='AAAAAA')
 BORD    = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 NCOLS   = 10
@@ -1651,7 +1651,7 @@ def batch_convert():
             div_ws.sheet_properties.tabColor = '1F3864'
             div_ws['A1'] = fname
             div_ws['A1'].font  = Font(name='Calibri', bold=True, size=14, color='FFFFFF')
-            div_ws['A1'].fill  = PatternFill('solid', start_color='1F3864')
+            div_ws['A1'].fill  = PatternFill('solid', start_color='2C4A72')
             div_ws['A2'] = f'Type: {fhx_type.upper()}   |   Sheets: {len(src_wb.sheetnames)}'
             div_ws['A2'].font  = Font(name='Calibri', size=11, color='AAAAAA')
             div_ws.column_dimensions['A'].width = 60
@@ -1703,7 +1703,7 @@ def batch_convert():
         summ_ws.sheet_properties.tabColor = '0D1B4B'
         summ_ws['A1'] = 'Batch Export Summary'
         summ_ws['A1'].font = Font(name='Calibri', bold=True, size=14, color='FFFFFF')
-        summ_ws['A1'].fill = PatternFill('solid', start_color='0D1B4B')
+        summ_ws['A1'].fill = PatternFill('solid', start_color='1E3A5F')
         summ_ws['B1'] = datetime.datetime.now().strftime('%d-%b-%Y %H:%M')
         summ_ws['B1'].font = Font(name='Calibri', size=11, color='AAAAAA')
         summ_ws.merge_cells('A1:F1')
@@ -1712,7 +1712,7 @@ def batch_convert():
         for ci, h in enumerate(headers, 1):
             c = summ_ws.cell(row=2, column=ci, value=h)
             c.font = Font(name='Calibri', bold=True, color='FFFFFF', size=10)
-            c.fill = PatternFill('solid', start_color='1F3864')
+            c.fill = PatternFill('solid', start_color='2C4A72')
 
         for ri, row_data in enumerate(batch_summary_rows):
             ri_sheet = ri + 3

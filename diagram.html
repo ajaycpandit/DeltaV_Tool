@@ -408,7 +408,7 @@ function renderBlock(block){
   // Defs: arrow marker
   var defs=ns('defs');
   var mk=ns('marker',{id:'arr',markerWidth:'7',markerHeight:'7',refX:'5',refY:'3.5',orient:'auto'});
-  mk.appendChild(ns('polygon',{points:'0,0 7,3.5 0,7',fill:'#94a3b8'}));
+  mk.appendChild(ns('polygon',{points:'0,0 7,3.5 0,7',fill:'#b4b2a9'}));
   defs.appendChild(mk);
   svgEl.appendChild(defs);
 
@@ -465,7 +465,7 @@ function renderBlock(block){
       var tp=tPos[tname];if(!tp)return;
       var p=ns('path',{
         d:orthoPath(sp.mid, sp.bot, tp.mid, tp.by),
-        fill:'none',stroke:'#94a3b8','stroke-width':'1.5',
+        fill:'none',stroke:'#b4b2a9','stroke-width':'1.5',
         'marker-end':'url(#arr)'
       });
       arrowG.appendChild(p);
@@ -480,7 +480,7 @@ function renderBlock(block){
     if(!tp||!sp)return;
     var p=ns('path',{
       d:orthoPath(tp.mid, tp.bot, sp.mid, sp.by),
-      fill:'none',stroke:'#94a3b8','stroke-width':'1.5',
+      fill:'none',stroke:'#b4b2a9','stroke-width':'1.5',
       'marker-end':'url(#arr)'
     });
     arrowG.appendChild(p);
@@ -495,8 +495,8 @@ function renderBlock(block){
     var g2=ns('g',{'class':'sfc-trans'});
 
     var rect=ns('rect',{x:bx,y:by,width:TW,height:TH,rx:'4',
-      fill:isEnd?'#7f1d1d':'#065f46',
-      stroke:isEnd?'#fca5a5':'#6ee7b7','stroke-width':'1.5',
+      fill:isEnd?'#993c1d':'#0f6e56',
+      stroke:isEnd?'#f5c4b3':'#9fe1cb','stroke-width':'1.5',
       'class':'trans-rect'
     });
     var lbl=ns('text',{
@@ -522,8 +522,8 @@ function renderBlock(block){
     var sh=ns('rect',{x:bx+1,y:by+2,width:SW,height:SH,rx:'7',fill:'rgba(0,0,0,.07)'});
 
     var rect=ns('rect',{x:bx,y:by,width:SW,height:SH,rx:'7',
-      fill:isInit?'#0c4a6e':'#1e40af',
-      stroke:isInit?'#7dd3fc':'#93c5fd','stroke-width':'2',
+      fill:isInit?'#0c447c':'#185fa5',
+      stroke:isInit?'#b5d4f4':'#b5d4f4','stroke-width':'2',
       'class':'step-rect'
     });
 
