@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SFC Diagram · FHX Converter</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f0f2f5;--white:#fff;--s1:#f8f9fc;--s2:#f0f4ff;
+  --bd:#e4e7ed;--bd2:#d0d4de;
+  --blue:#2563eb;--blue50:#eff4ff;--blue100:#dbeafe;--blue700:#1d4ed8;--blue900:#1e3a8a;
+  --green:#059669;--green50:#ecfdf5;--green100:#d1fae5;--green800:#065f46;
+  --red:#dc2626;--red50:#fef2f2;
+  --purple:#7c3aed;--purple50:#f5f3ff;--purple100:#ede9fe;
+  --amber:#d97706;--amber50:#fffbeb;
+  --text:#0f172a;--text2:#334155;--muted:#64748b;--dim:#94a3b8;
+  --sans:'Inter',sans-serif;--mono:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;overflow:hidden}
+
+/* HEADER */
+header{
+  height:52px;display:flex;align-items:center;gap:14px;padding:0 20px;
+  background:var(--blue);border-bottom:1px solid rgba(0,0,0,.1);flex-shrink:0;position:relative;z-index:20;
+}
+.h-icon{width:28px;height:28px;background:rgba(255,255,255,.2);border-radius:6px;display:grid;place-items:center}
+.h-icon svg{width:15px;height:15px;fill:none;stroke:#fff;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.h-title{font-size:14px;font-weight:600;color:#fff}
+.h-title span{opacity:.7}
+.h-back{font-size:12px;color:rgba(255,255,255,.75);text-decoration:none;display:flex;align-items:center;gap:5px;transition:color .15s}
+.h-back:hover{color:#fff}
+.h-right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.h-btn{
+  display:flex;align-items:center;gap:6px;padding:6px 14px;
+  font-size:12px;font-weight:500;border-radius:7px;cursor:pointer;transition:all .15s;
+  border:none;
+}
+.h-btn.dl{background:rgba(255,255,255,.15);color:#fff}
+.h-btn.dl:hover{background:rgba(255,255,255,.25)}
+.h-btn.dl:disabled{opacity:.4;cursor:default}
+.h-btn svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+
+/* TOOLBAR */
+.toolbar{
+  height:44px;display:flex;align-items:center;gap:8px;padding:0 16px;
+  background:var(--white);border-bottom:1px solid var(--bd);
+  flex-shrink:0;position:relative;z-index:10;
+}
+.block-tabs{display:flex;gap:4px;flex:1;overflow-x:auto;scrollbar-width:none}
+.block-tabs::-webkit-scrollbar{display:none}
+.btab{
+  padding:5px 12px;border-radius:6px;font-size:12px;font-weight:500;
+  border:1px solid var(--bd);background:var(--s1);color:var(--muted);
+  cursor:pointer;white-space:nowrap;transition:all .15s;flex-shrink:0;
+}
+.btab:hover{border-color:var(--bd2);color:var(--text2)}
+.btab.on{background:var(--blue50);border-color:var(--blue100);color:var(--blue700);font-weight:600}
+.zoom-controls{display:flex;align-items:center;gap:4px;margin-left:auto;flex-shrink:0}
+.zc-btn{
+  width:28px;height:28px;border-radius:6px;border:1px solid var(--bd);
+  background:var(--white);color:var(--muted);cursor:pointer;
+  font-size:14px;display:grid;place-items:center;transition:all .15s;
+}
+.zc-btn:hover{border-color:var(--bd2);color:var(--text2);background:var(--s1)}
+.zoom-lbl{font-size:11px;color:var(--muted);font-family:var(--mono);min-width:38px;text-align:center}
+
+/* MAIN */
+.main{flex:1;display:flex;overflow:hidden;position:relative}
+body{display:flex;flex-direction:column}
+
+/* DROP STATE */
+.drop-overlay{
+  position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:var(--bg);z-index:5;transition:opacity .2s;
+}
+.drop-overlay.hidden{display:none}
+.drop-card{
+  background:var(--white);border:2px dashed var(--bd2);border-radius:16px;
+  padding:48px 40px;text-align:center;max-width:420px;
+  transition:all .2s;
+}
+.drop-card.over{border-color:var(--blue);background:var(--blue50)}
+.drop-big-icon{font-size:48px;margin-bottom:16px}
+.drop-title{font-size:20px;font-weight:600;color:var(--text);margin-bottom:8px}
+.drop-sub{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:20px}
+.drop-btn{
+  display:inline-flex;align-items:center;gap:8px;padding:10px 22px;
+  background:var(--blue);color:#fff;border-radius:8px;cursor:pointer;
+  font-size:13px;font-weight:500;border:none;transition:all .15s;
+}
+.drop-btn:hover{background:var(--blue700)}
+.drop-input{position:absolute;width:1px;height:1px;opacity:0}
+.loading-state{display:none;flex-direction:column;align-items:center;gap:14px}
+.loading-state.show{display:flex}
+.spinner{width:36px;height:36px;border:3px solid var(--bd);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--muted)}
+
+/* SVG CANVAS */
+.canvas-wrap{
+  flex:1;overflow:hidden;position:relative;cursor:grab;
+  background:var(--s1);
+  background-image:
+    radial-gradient(circle, #d0d4de 1px, transparent 1px);
+  background-size:24px 24px;
+}
+.canvas-wrap.grabbing{cursor:grabbing}
+.canvas-wrap.hidden{display:none}
+svg.diagram{position:absolute;top:0;left:0;overflow:visible;user-select:none}
+
+/* SVG elements */
+.sfc-step{cursor:pointer;transition:filter .15s}
+.sfc-step:hover{filter:drop-shadow(0 4px 12px rgba(37,99,235,.4))}
+.sfc-step rect{rx:6}
+.sfc-trans{cursor:pointer;transition:filter .15s}
+.sfc-trans:hover{filter:drop-shadow(0 3px 8px rgba(5,150,105,.5))}
+.sfc-arrow{pointer-events:none}
+.sfc-label{pointer-events:none;font-family:'Inter',sans-serif}
+
+/* MINI-MAP */
+.minimap{
+  position:absolute;bottom:16px;right:16px;
+  width:160px;height:120px;
+  background:rgba(255,255,255,.92);
+  border:1px solid var(--bd);border-radius:10px;
+  overflow:hidden;backdrop-filter:blur(4px);
+  box-shadow:0 2px 12px rgba(0,0,0,.08);
+  pointer-events:none;
+}
+.minimap svg{width:100%;height:100%}
+.minimap-viewport{fill:rgba(37,99,235,.12);stroke:var(--blue);stroke-width:1.5}
+
+/* LEGEND */
+.legend{
+  position:absolute;bottom:16px;left:16px;
+  background:rgba(255,255,255,.92);border:1px solid var(--bd);border-radius:10px;
+  padding:10px 14px;backdrop-filter:blur(4px);
+  box-shadow:0 2px 12px rgba(0,0,0,.08);
+  display:flex;flex-direction:column;gap:6px;
+}
+.legend-item{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
+.legend-swatch{width:14px;height:10px;border-radius:3px;flex-shrink:0}
+
+/* MODAL */
+.modal-backdrop{
+  position:fixed;inset:0;background:rgba(15,23,42,.45);
+  display:flex;align-items:center;justify-content:center;
+  z-index:100;padding:20px;opacity:0;pointer-events:none;
+  transition:opacity .2s;backdrop-filter:blur(3px);
+}
+.modal-backdrop.show{opacity:1;pointer-events:all}
+.modal{
+  background:var(--white);border-radius:16px;
+  width:100%;max-width:780px;max-height:82vh;
+  display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.2);
+  transform:scale(.97) translateY(8px);transition:transform .2s;
+}
+.modal-backdrop.show .modal{transform:scale(1) translateY(0)}
+
+.modal-header{
+  padding:18px 22px 16px;border-bottom:1px solid var(--bd);
+  display:flex;align-items:flex-start;gap:14px;flex-shrink:0;
+}
+.modal-hicon{
+  width:38px;height:38px;border-radius:9px;flex-shrink:0;
+  display:grid;place-items:center;font-size:18px;
+}
+.modal-hicon.step{background:var(--blue50)}
+.modal-hicon.trans{background:var(--green50)}
+.modal-htitle{font-size:16px;font-weight:600;color:var(--text);line-height:1.3}
+.modal-hsub{font-size:12px;color:var(--muted);margin-top:3px}
+.modal-close{
+  margin-left:auto;width:30px;height:30px;border-radius:7px;
+  background:none;border:none;cursor:pointer;color:var(--dim);
+  font-size:18px;display:grid;place-items:center;transition:all .15s;flex-shrink:0;
+}
+.modal-close:hover{background:var(--s1);color:var(--text)}
+
+.modal-body{overflow-y:auto;flex:1;padding:0 22px 20px}
+.modal-body::-webkit-scrollbar{width:5px}
+.modal-body::-webkit-scrollbar-thumb{background:var(--bd2);border-radius:3px}
+
+/* ACTIONS TABLE */
+.section-head{
+  display:flex;align-items:center;gap:8px;
+  padding:14px 0 10px;font-size:12px;font-weight:600;
+  color:var(--muted);letter-spacing:.08em;text-transform:uppercase;
+  border-bottom:1px solid var(--bd);margin-bottom:0;
+}
+.section-head .cnt{
+  background:var(--blue50);color:var(--blue700);
+  font-size:10px;padding:2px 7px;border-radius:20px;font-weight:600;
+}
+.action-table{width:100%;border-collapse:collapse;margin-top:1px}
+.action-table th{
+  padding:8px 10px;font-size:10px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.07em;text-align:left;
+  background:var(--s1);border-bottom:1px solid var(--bd);
+  position:sticky;top:0;
+}
+.action-table td{
+  padding:9px 10px;font-size:12px;vertical-align:top;
+  border-bottom:1px solid var(--bd);line-height:1.55;
+}
+.action-table tr:last-child td{border-bottom:none}
+.action-table tr:hover td{background:var(--s2)}
+.action-table td.mono{font-family:var(--mono);font-size:11px;color:var(--text2)}
+.action-table td.expr{font-family:var(--mono);font-size:11px;color:var(--blue900);white-space:pre-wrap;word-break:break-all}
+.action-table td.muted{color:var(--muted);font-style:italic}
+.badge-type{font-size:9px;font-weight:600;padding:2px 7px;border-radius:20px;letter-spacing:.04em}
+.badge-type.SH{background:var(--blue50);color:var(--blue700)}
+.badge-type.ST{background:var(--green50);color:var(--green800)}
+.badge-type.default{background:var(--s1);color:var(--muted)}
+
+/* Trans expression block */
+.expr-block{
+  margin-top:14px;background:var(--s1);border-radius:10px;
+  border:1px solid var(--bd);padding:14px 16px;
+}
+.expr-block-label{font-size:10px;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.expr-block-code{
+  font-family:var(--mono);font-size:12px;color:var(--blue900);
+  white-space:pre-wrap;word-break:break-all;line-height:1.6;
+}
+.trans-desc{font-size:13px;color:var(--text2);margin-top:12px;line-height:1.6;
+  padding:10px 14px;background:var(--amber50);border-radius:8px;border-left:3px solid var(--amber)}
+.term-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:4px 10px;border-radius:20px;font-size:11px;font-weight:600;
+  margin-top:10px;
+}
+.term-badge.end{background:var(--red50);color:var(--red)}
+.term-badge.next{background:var(--green50);color:var(--green800)}
+</style>
+</head>
+<body>
+
+<header>
+  <a class="h-back" href="/">
+    <svg viewBox="0 0 14 14" width="13" height="13"><polyline points="9,2 4,7 9,12"/></svg>
+    Back
+  </a>
+  <div class="h-icon">
+    <svg viewBox="0 0 16 16"><rect x="3" y="1" width="10" height="6" rx="1.5"/><rect x="3" y="10" width="10" height="4" rx="1.5"/><line x1="8" y1="7" x2="8" y2="10"/></svg>
+  </div>
+  <div class="h-title">SFC Diagram Viewer <span id="hFile"></span></div>
+  <div class="h-right">
+    <button class="h-btn dl" id="dlBtn" disabled onclick="downloadExcel()">
+      <svg viewBox="0 0 14 14"><line x1="7" y1="1" x2="7" y2="9"/><polyline points="3,5 7,9 11,5"/><line x1="1" y1="12" x2="13" y2="12"/></svg>
+      Download Excel
+    </button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="block-tabs" id="blockTabs"></div>
+  <div class="zoom-controls">
+    <button class="zc-btn" onclick="zoom(-0.2)" title="Zoom out">−</button>
+    <div class="zoom-lbl" id="zoomLbl">100%</div>
+    <button class="zc-btn" onclick="zoom(+0.2)" title="Zoom in">+</button>
+    <button class="zc-btn" onclick="resetView()" title="Reset view" style="font-size:11px">⊡</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Drop / loading state -->
+  <div class="drop-overlay" id="dropOverlay">
+    <div class="drop-card" id="dropCard">
+      <div class="drop-big-icon">🗺️</div>
+      <div class="drop-title">SFC Diagram Viewer</div>
+      <div class="drop-sub">Drop a DeltaV Phase FHX file here, or click to browse.<br>The diagram will render automatically from the SFC coordinates.</div>
+      <label>
+        <input type="file" class="drop-input" id="fileIn" accept=".fhx,.FHX"/>
+        <div class="drop-btn">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" viewBox="0 0 14 14"><rect x="1" y="3" width="12" height="10" rx="2"/><polyline points="4,3 7,0 10,3"/></svg>
+          Browse file
+        </div>
+      </label>
+    </div>
+    <div class="loading-state" id="loadState">
+      <div class="spinner"></div>
+      <div class="loading-text" id="loadText">Parsing FHX…</div>
+    </div>
+  </div>
+
+  <!-- Diagram canvas -->
+  <div class="canvas-wrap hidden" id="canvasWrap">
+    <svg class="diagram" id="svgDiagram" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <!-- Legend -->
+  <div class="legend hidden" id="legend">
+    <div class="legend-item"><div class="legend-swatch" style="background:#1e40af;border-radius:4px"></div>Step — click for actions</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#065f46;height:6px;border-radius:2px"></div>Transition — click for expression</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#7f1d1d;height:6px;border-radius:2px"></div>Terminating transition</div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal" onclick="closeModal(event)">
+  <div class="modal" id="modalBox">
+    <div class="modal-header">
+      <div class="modal-hicon" id="mIcon">📋</div>
+      <div>
+        <div class="modal-htitle" id="mTitle">Step name</div>
+        <div class="modal-hsub" id="mSub">subtitle</div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="mBody"></div>
+  </div>
+</div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+var parsedData  = null;   // full /parse response
+var currentBlock= null;   // currently shown block label
+var svgEl       = document.getElementById('svgDiagram');
+var scale       = 1;
+var panX        = 0, panY = 0;
+var isDragging  = false;
+var dragStartX  = 0, dragStartY = 0, panStartX = 0, panStartY = 0;
+var resultBlob  = null;
+var currentFile = null;
+
+// ─── File handling ────────────────────────────────────────────────────────────
+var dropCard = document.getElementById('dropCard');
+var fileIn   = document.getElementById('fileIn');
+var overlay  = document.getElementById('dropOverlay');
+
+document.addEventListener('dragover',  function(e){e.preventDefault();dropCard.classList.add('over');});
+document.addEventListener('dragleave', function(e){if(!e.relatedTarget)dropCard.classList.remove('over');});
+document.addEventListener('drop', function(e){
+  e.preventDefault();dropCard.classList.remove('over');
+  var f=e.dataTransfer.files[0];if(f)loadFile(f);
+});
+fileIn.addEventListener('change',function(e){if(e.target.files[0])loadFile(e.target.files[0]);});
+
+function loadFile(f){
+  currentFile=f;
+  showLoading('Uploading and parsing FHX…');
+  var fd=new FormData();fd.append('file',f,f.name);
+  fetch('/parse',{method:'POST',body:fd})
+    .then(function(r){return r.json();})
+    .then(function(data){
+      if(data.error){showError(data.error);return;}
+      parsedData=data;
+      document.getElementById('hFile').textContent='· '+data.filename;
+      buildBlockTabs(data.blocks);
+      var firstKey=Object.keys(data.blocks)[0];
+      if(firstKey)showBlock(firstKey);
+      // Also trigger Excel generation in background
+      preloadExcel(f);
+    })
+    .catch(function(e){showError(e.message);});
+}
+
+function preloadExcel(f){
+  var fd=new FormData();
+  fd.append('file',f,f.name);fd.append('fhx_type','auto');
+  fd.append('format','excel');fd.append('transitions','true');
+  fd.append('summary','true');fd.append('expressions','true');
+  fd.append('columns','step,description,action,qualifier,expression,delay,confirm_expression');
+  fetch('/convert',{method:'POST',body:fd})
+    .then(function(r){return r.ok?r.blob():null;})
+    .then(function(blob){
+      if(blob){resultBlob=blob;document.getElementById('dlBtn').disabled=false;}
+    }).catch(function(){});
+}
+
+function showLoading(msg){
+  document.getElementById('loadState').classList.add('show');
+  document.getElementById('dropCard').style.display='none';
+  document.getElementById('loadText').textContent=msg||'Parsing…';
+}
+function showError(msg){
+  document.getElementById('loadState').classList.remove('show');
+  document.getElementById('dropCard').style.display='';
+  document.getElementById('loadText').textContent='';
+  document.getElementById('dropCard').querySelector('.drop-sub').textContent='Error: '+msg+'. Please try another file.';
+}
+
+// ─── Block tabs ───────────────────────────────────────────────────────────────
+function buildBlockTabs(blocks){
+  var el=document.getElementById('blockTabs');
+  el.innerHTML='';
+  Object.keys(blocks).forEach(function(lbl){
+    var b=document.createElement('button');
+    b.className='btab';b.textContent=lbl;b.dataset.lbl=lbl;
+    b.onclick=function(){showBlock(lbl);};
+    el.appendChild(b);
+  });
+}
+
+function showBlock(lbl){
+  currentBlock=lbl;
+  document.querySelectorAll('.btab').forEach(function(b){
+    b.classList.toggle('on',b.dataset.lbl===lbl);
+  });
+  overlay.classList.add('hidden');
+  document.getElementById('canvasWrap').classList.remove('hidden');
+  document.getElementById('legend').classList.remove('hidden');
+  renderBlock(parsedData.blocks[lbl]);
+  resetView();
+}
+
+// ─── SFC Renderer ─────────────────────────────────────────────────────────────
+var SW=160, SH=40;   // step width, height
+var TW=80,  TH=16;   // transition width, height
+
+function renderBlock(block){
+  svgEl.innerHTML='';
+  var steps=block.steps, trans=block.transitions;
+  if(!steps.length){svgEl.innerHTML='<text x="40" y="40" font-family="Inter" font-size="14" fill="#64748b">No SFC steps in this block.</text>';return;}
+
+  var allX=steps.map(function(s){return s.x;}).concat(Object.values(trans).map(function(t){return t.x;}));
+  var allY=steps.map(function(s){return s.y;}).concat(Object.values(trans).map(function(t){return t.y;}));
+  var xMin=Math.min.apply(null,allX), yMin=Math.min.apply(null,allY);
+  var xMax=Math.max.apply(null,allX), yMax=Math.max.apply(null,allY);
+
+  // Scale factor: fit DeltaV coords into reasonable pixel space
+  var rangeX=Math.max(xMax-xMin,1), rangeY=Math.max(yMax-yMin,1);
+  var SX=Math.max(1.2, Math.min(3.5, 600/rangeX));
+  var SY=Math.max(1.2, Math.min(3.5, 800/rangeY));
+
+  function px(x){return Math.round((x-xMin)*SX)+80;}
+  function py(y){return Math.round((y-yMin)*SY)+60;}
+
+  var defs=mkEl('defs');
+  // Arrow marker
+  var marker=mkEl('marker',{id:'arrow',markerWidth:'8',markerHeight:'8',refX:'6',refY:'3',orient:'auto'});
+  var mpath=mkEl('path',{d:'M0,0 L0,6 L8,3 z',fill:'#94a3b8'});
+  marker.appendChild(mpath);defs.appendChild(marker);
+  // Glow filter
+  var filt=mkEl('filter',{id:'glow',x:'-20%',y:'-20%',width:'140%',height:'140%'});
+  var fgb=mkEl('feGaussianBlur',{stdDeviation:'3',result:'blur'});
+  var fco=mkEl('feComposite',{in:'SourceGraphic',in2:'blur',operator:'over'});
+  filt.appendChild(fgb);filt.appendChild(fco);defs.appendChild(filt);
+  svgEl.appendChild(defs);
+
+  // Position lookup for arrow drawing
+  var stepPos={}, transPos={};
+  steps.forEach(function(s){
+    stepPos[s.name]={cx:px(s.x)+SW/2, cy:py(s.y), bx:px(s.x), by:py(s.y)};
+  });
+  Object.values(trans).forEach(function(t){
+    transPos[t.name]={cx:px(t.x)+TW/2, cy:py(t.y)+TH/2, bx:px(t.x), by:py(t.y)};
+  });
+
+  // Draw arrows first (behind everything)
+  var arrowGroup=mkEl('g',{'class':'arrows'});
+  steps.forEach(function(s){
+    var sp=stepPos[s.name];
+    s.transitions.forEach(function(tname){
+      var tp=transPos[tname];
+      if(!tp)return;
+      var path=mkEl('path',{
+        d:'M'+sp.cx+','+(sp.cy+SH)+' L'+tp.cx+','+tp.by,
+        fill:'none',stroke:'#94a3b8','stroke-width':'1.5',
+        'stroke-dasharray':'none','marker-end':'url(#arrow)',
+        'class':'sfc-arrow'
+      });
+      arrowGroup.appendChild(path);
+    });
+  });
+  svgEl.appendChild(arrowGroup);
+
+  // Draw transitions
+  var transGroup=mkEl('g',{'class':'transitions'});
+  Object.values(trans).forEach(function(t){
+    var bx=px(t.x), by=py(t.y);
+    var isEnd=t.termination==='T';
+    var g2=mkEl('g',{'class':'sfc-trans','data-name':t.name});
+    var rect=mkEl('rect',{
+      x:bx,y:by,width:TW,height:TH,rx:'4',
+      fill:isEnd?'#7f1d1d':'#065f46',
+      stroke:isEnd?'#fca5a5':'#6ee7b7','stroke-width':'1.5'
+    });
+    var label=mkEl('text',{
+      x:bx+TW/2, y:by+TH/2,
+      'text-anchor':'middle','dominant-baseline':'middle',
+      fill:'#fff','font-size':'9','font-family':'Inter','font-weight':'500',
+      'class':'sfc-label'
+    });
+    label.textContent=(isEnd?'⏹ ':'◆ ')+t.name;
+    g2.appendChild(rect);g2.appendChild(label);
+    g2.addEventListener('click',function(){openTransModal(t);});
+    transGroup.appendChild(g2);
+  });
+  svgEl.appendChild(transGroup);
+
+  // Draw steps
+  var stepGroup=mkEl('g',{'class':'steps'});
+  steps.forEach(function(s,idx){
+    var bx=px(s.x), by=py(s.y);
+    var isInit=idx===0;
+    var g2=mkEl('g',{'class':'sfc-step','data-name':s.name});
+
+    // Shadow
+    var shadow=mkEl('rect',{x:bx+2,y:by+3,width:SW,height:SH,rx:'7',fill:'rgba(0,0,0,.08)'});
+
+    var rect=mkEl('rect',{
+      x:bx,y:by,width:SW,height:SH,rx:'7',
+      fill:isInit?'#0c4a6e':'#1e40af',
+      stroke:isInit?'#7dd3fc':'#93c5fd','stroke-width':'2'
+    });
+
+    // Step name
+    var name=mkEl('text',{
+      x:bx+SW/2, y:by+SH/2-6,
+      'text-anchor':'middle','dominant-baseline':'middle',
+      fill:'#fff','font-size':'10','font-family':'Inter','font-weight':'600',
+      'class':'sfc-label'
+    });
+    name.textContent=s.name.length>18?s.name.slice(0,17)+'…':s.name;
+
+    // Action count badge
+    var badgeBg=mkEl('rect',{x:bx+SW/2-22,y:by+SH-18,width:44,height:14,rx:'7',fill:'rgba(255,255,255,.2)'});
+    var badge=mkEl('text',{
+      x:bx+SW/2, y:by+SH-11,
+      'text-anchor':'middle','dominant-baseline':'middle',
+      fill:'rgba(255,255,255,.85)','font-size':'8','font-family':'Inter',
+      'class':'sfc-label'
+    });
+    badge.textContent=s.actions.length+' action'+(s.actions.length!==1?'s':'');
+
+    g2.appendChild(shadow);g2.appendChild(rect);
+    g2.appendChild(name);g2.appendChild(badgeBg);g2.appendChild(badge);
+    g2.addEventListener('click',function(){openStepModal(s);});
+    stepGroup.appendChild(g2);
+  });
+  svgEl.appendChild(stepGroup);
+
+  // Set SVG size
+  var W=Math.max.apply(null,steps.map(function(s){return px(s.x)+SW;}))
+         +80;
+  var H=Math.max.apply(null,Object.values(trans).map(function(t){return py(t.y)+TH;})
+         .concat(steps.map(function(s){return py(s.y)+SH;})))+80;
+  svgEl.setAttribute('width',W);svgEl.setAttribute('height',H);
+}
+
+function mkEl(tag,attrs){
+  var el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  if(attrs)Object.keys(attrs).forEach(function(k){el.setAttribute(k,attrs[k]);});
+  return el;
+}
+
+// ─── Pan & Zoom ───────────────────────────────────────────────────────────────
+var cw=document.getElementById('canvasWrap');
+
+cw.addEventListener('mousedown',function(e){
+  if(e.target.closest('.sfc-step,.sfc-trans'))return;
+  isDragging=true;dragStartX=e.clientX;dragStartY=e.clientY;
+  panStartX=panX;panStartY=panY;cw.classList.add('grabbing');
+});
+window.addEventListener('mousemove',function(e){
+  if(!isDragging)return;
+  panX=panStartX+(e.clientX-dragStartX);
+  panY=panStartY+(e.clientY-dragStartY);
+  updateTransform();
+});
+window.addEventListener('mouseup',function(){isDragging=false;cw.classList.remove('grabbing');});
+cw.addEventListener('wheel',function(e){
+  e.preventDefault();
+  var delta=e.deltaY>0?-0.1:0.1;
+  zoom(delta,e.clientX,e.clientY);
+},{passive:false});
+
+function zoom(delta, cx, cy){
+  var oldScale=scale;
+  scale=Math.max(0.2,Math.min(4,scale+delta));
+  if(cx!==undefined){
+    var rect=cw.getBoundingClientRect();
+    var ox=cx-rect.left, oy=cy-rect.top;
+    panX=ox-(ox-panX)*(scale/oldScale);
+    panY=oy-(oy-panY)*(scale/oldScale);
+  }
+  updateTransform();
+  document.getElementById('zoomLbl').textContent=Math.round(scale*100)+'%';
+}
+function updateTransform(){
+  svgEl.style.transform='translate('+panX+'px,'+panY+'px) scale('+scale+')';
+  svgEl.style.transformOrigin='0 0';
+}
+function resetView(){
+  scale=1;panX=40;panY=20;
+  updateTransform();
+  document.getElementById('zoomLbl').textContent='100%';
+}
+
+// ─── Modals ───────────────────────────────────────────────────────────────────
+function openStepModal(step){
+  var body=document.getElementById('mBody');
+  document.getElementById('mIcon').className='modal-hicon step';
+  document.getElementById('mIcon').textContent='📋';
+  document.getElementById('mTitle').textContent=step.name;
+  document.getElementById('mSub').textContent=step.actions.length+' action'+(step.actions.length!==1?'s':'')+' · Step';
+
+  var html='<div class="section-head">Actions <span class="cnt">'+step.actions.length+'</span></div>';
+  html+='<table class="action-table"><thead><tr>';
+  html+='<th>Action ID</th><th>Description</th><th>Type</th><th>Expression</th>';
+  if(step.actions.some(function(a){return a.delay_time||a.delay_expression;}))html+='<th>Delay</th>';
+  html+='</tr></thead><tbody>';
+
+  var hasDelay=step.actions.some(function(a){return a.delay_time||a.delay_expression;});
+  step.actions.forEach(function(a){
+    var typeLabel=a.type||'—';
+    var typeCls=a.type==='SH'?'SH':a.type==='ST'?'ST':'default';
+    html+='<tr>';
+    html+='<td class="mono">'+esc(a.action)+'</td>';
+    html+='<td>'+(a.description?esc(a.description):'<span class="muted">—</span>')+'</td>';
+    html+='<td><span class="badge-type '+typeCls+'">'+esc(typeLabel)+'</span></td>';
+    html+='<td class="expr">'+(a.expression?esc(a.expression):'<span class="muted">—</span>')+'</td>';
+    if(hasDelay){
+      var d=a.delay_time||a.delay_expression||'—';
+      html+='<td class="mono">'+esc(d)+'</td>';
+    }
+    html+='</tr>';
+  });
+  html+='</tbody></table>';
+
+  // Show outgoing transitions
+  if(step.transitions&&step.transitions.length){
+    html+='<div class="section-head" style="margin-top:16px">Outgoing transitions <span class="cnt">'+step.transitions.length+'</span></div>';
+    html+='<table class="action-table"><thead><tr><th>Transition</th><th>Type</th><th>Condition / Expression</th></tr></thead><tbody>';
+    step.transitions.forEach(function(tname){
+      var t=parsedData.blocks[currentBlock].transitions[tname];
+      if(!t)return;
+      var term=t.termination==='T';
+      html+='<tr>';
+      html+='<td class="mono">'+esc(tname)+'</td>';
+      html+='<td><span class="term-badge '+(term?'end':'next')+'" style="display:inline-flex;padding:2px 8px;font-size:10px">'+(term?'⏹ END':'→ NEXT')+'</span></td>';
+      html+='<td class="expr">'+(t.expression?esc(t.expression):'<span class="muted">—</span>')+'</td>';
+      html+='</tr>';
+    });
+    html+='</tbody></table>';
+  }
+
+  body.innerHTML=html;
+  showModal();
+}
+
+function openTransModal(trans){
+  document.getElementById('mIcon').className='modal-hicon trans';
+  document.getElementById('mIcon').textContent='◆';
+  document.getElementById('mTitle').textContent=trans.name;
+  var term=trans.termination==='T';
+  document.getElementById('mSub').textContent=(term?'Terminating transition':'Transition')+
+    (trans.description?' · '+trans.description:'');
+
+  var html='<span class="term-badge '+(term?'end':'next')+'">'+
+    (term?'⏹ Terminates sequence':'→ Continues to next step')+'</span>';
+
+  if(trans.description){
+    html+='<div class="trans-desc">'+esc(trans.description)+'</div>';
+  }
+
+  html+='<div class="expr-block"><div class="expr-block-label">Transition Condition</div>';
+  html+='<div class="expr-block-code">'+(trans.expression?esc(trans.expression):'(always true)')+'</div></div>';
+
+  document.getElementById('mBody').innerHTML=html;
+  showModal();
+}
+
+function showModal(){document.getElementById('modal').classList.add('show');}
+function closeModal(e){
+  if(e&&e.target!==document.getElementById('modal'))return;
+  document.getElementById('modal').classList.remove('show');
+}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
+
+function esc(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function downloadExcel(){
+  if(!resultBlob||!currentFile)return;
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(resultBlob);
+  a.download=currentFile.name.replace(/\.fhx$/i,'')+'_Logic.xlsx';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+}
+</script>
+</body>
+</html>

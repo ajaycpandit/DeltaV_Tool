@@ -625,6 +625,304 @@ def detect_fhx_type(text):
     return 'phase'
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# SFC DIAGRAM BUILDER
+# Generates a cell-grid SFC diagram in Excel with clickable step/transition
+# shapes that hyperlink to their detail rows on a sibling sheet.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+SCALE_D  = 0.09   # DeltaV coord units → grid cells
+STEP_W_D = 18     # step box width  (grid cells)
+STEP_H_D = 4      # step box height
+TRAN_W_D = 10     # transition width
+TRAN_H_D = 2      # transition height
+
+def _to_grid(x, y, x_min, y_min):
+    col = max(2, round((x - x_min) * SCALE_D) + 3)
+    row = max(2, round((y - y_min) * SCALE_D) + 2)
+    return row, col
+
+def _draw_step_cell(ws, row, col, name, n_actions, detail_sheet, detail_row, is_init):
+    r1, c1 = row, col
+    r2, c2 = row + STEP_H_D - 1, col + STEP_W_D - 1
+    fill = PatternFill('solid', start_color='0C4A6E') if is_init \
+           else PatternFill('solid', start_color='1E40AF')
+    try:
+        ws.merge_cells(start_row=r1, start_column=c1, end_row=r2, end_column=c2)
+    except Exception:
+        pass
+    cell = ws.cell(row=r1, column=c1)
+    cell.value = '=HYPERLINK("#\'{}\'!A{}","{} ({} act)")'.format(
+        detail_sheet, detail_row, name, n_actions)
+    cell.font      = Font(name='Calibri', bold=True, size=8, color='FFFFFF')
+    cell.fill      = fill
+    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    cell.border    = Border(
+        left=Side(style='medium', color='BFDBFE'),
+        right=Side(style='medium', color='BFDBFE'),
+        top=Side(style='medium', color='BFDBFE'),
+        bottom=Side(style='medium', color='BFDBFE'),
+    )
+    return r1, c1, r2, c2
+
+def _draw_trans_cell(ws, row, col, name, detail_sheet, detail_row, is_end):
+    r1, c1 = row, col
+    r2, c2 = row + TRAN_H_D - 1, col + TRAN_W_D - 1
+    fill = PatternFill('solid', start_color='7F1D1D') if is_end \
+           else PatternFill('solid', start_color='065F46')
+    try:
+        ws.merge_cells(start_row=r1, start_column=c1, end_row=r2, end_column=c2)
+    except Exception:
+        pass
+    cell = ws.cell(row=r1, column=c1)
+    cell.value = '=HYPERLINK("#\'{}\'!A{}","\u25c6 {}")'.format(
+        detail_sheet, detail_row, name)
+    cell.font      = Font(name='Calibri', bold=True, size=7, color='FFFFFF')
+    cell.fill      = fill
+    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    cell.border    = Border(
+        left=Side(style='thin', color='6EE7B7'),
+        right=Side(style='thin', color='6EE7B7'),
+        top=Side(style='thin', color='6EE7B7'),
+        bottom=Side(style='thin', color='6EE7B7'),
+    )
+    return r1, c1, r2, c2
+
+def _draw_arrow(ws, from_row, to_row, mid_col, bg_fill):
+    for r in range(from_row + 1, to_row):
+        cell = ws.cell(row=r, column=mid_col)
+        if cell.value is None:
+            cell.fill  = bg_fill
+            cell.value = ''
+
+def build_sfc_diagram_sheet(wb, label, data, detail_name):
+    """Build the _D diagram sheet for one logic block."""
+    diag_name = (label[:27] + '_D')[:31]
+    ws = wb.create_sheet(title=diag_name)
+
+    steps = data['ordered_steps']
+    trans = data['transitions']
+    s2t   = data['step_to_trans']
+
+    if not steps:
+        ws['A1'] = '(No SFC steps to diagram)'
+        return ws
+
+    all_x = [v['x'] for _,v in steps] + [v['x'] for v in trans.values()]
+    all_y = [v['y'] for _,v in steps] + [v['y'] for v in trans.values()]
+    x_min, y_min = min(all_x), min(all_y)
+
+    max_gc = max(round((x-x_min)*SCALE_D)+STEP_W_D+6 for x in all_x) + 5
+    max_gr = max(round((y-y_min)*SCALE_D)+STEP_H_D+4 for y in all_y) + 5
+    max_gc = max(max_gc, 30)
+
+    ws.sheet_view.showGridLines = False
+    for i in range(1, max_gc + 2):
+        ws.column_dimensions[get_column_letter(i)].width = 8/7
+    for i in range(1, max_gr + 4):
+        ws.row_dimensions[i].height = 15
+
+    # Light background
+    bg = PatternFill('solid', start_color='F8FAFC')
+    for r in range(1, max_gr + 3):
+        for c in range(1, max_gc + 2):
+            ws.cell(row=r, column=c).fill = bg
+
+    # Title
+    ws.row_dimensions[1].height = 22
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=max_gc)
+    tc = ws.cell(row=1, column=1)
+    tc.value     = '  SFC: {}   |   Click step (blue) or transition (green/red) for detail'.format(label)
+    tc.font      = Font(name='Calibri', bold=True, size=10, color='FFFFFF')
+    tc.fill      = PatternFill('solid', start_color='0F172A')
+    tc.alignment = Alignment(horizontal='left', vertical='center')
+
+    arrow_fill = PatternFill('solid', start_color='94A3B8')
+    step_rows  = data.get('_detail_rows', {})
+    trans_rows = data.get('_trans_detail_rows', {})
+
+    step_boxes  = {}
+    for si, (sname, sdata) in enumerate(steps):
+        gr, gc = _to_grid(sdata['x'], sdata['y'], x_min, y_min)
+        gr += 1  # title offset
+        det = step_rows.get(sname, 2)
+        r1,c1,r2,c2 = _draw_step_cell(ws, gr, gc, sname,
+                                        len(sdata['actions']),
+                                        detail_name, det, si == 0)
+        step_boxes[sname] = (r1,c1,r2,c2)
+
+    trans_boxes = {}
+    for tname, tdata in trans.items():
+        gr, gc = _to_grid(tdata['x'], tdata['y'], x_min, y_min)
+        gr += 1
+        det    = trans_rows.get(tname, 2)
+        is_end = tdata.get('termination','F') == 'T'
+        r1,c1,r2,c2 = _draw_trans_cell(ws, gr, gc, tname,
+                                         detail_name, det, is_end)
+        trans_boxes[tname] = (r1,c1,r2,c2)
+
+    # Draw arrows step → transition
+    for sname, tlist in s2t.items():
+        if sname not in step_boxes: continue
+        sr1,sc1,sr2,sc2 = step_boxes[sname]
+        for tname in tlist:
+            if tname not in trans_boxes: continue
+            tr1,tc1_,tr2,tc2_ = trans_boxes[tname]
+            mid = (tc1_ + tc2_) // 2
+            if tr1 > sr2:
+                _draw_arrow(ws, sr2, tr1, mid, arrow_fill)
+
+    # Legend
+    lr = max_gr + 2
+    ws.row_dimensions[lr].height = 16
+    ws.merge_cells(start_row=lr, start_column=1, end_row=lr, end_column=max_gc)
+    lc = ws.cell(row=lr, column=1)
+    lc.value     = '  Blue = Step  |  Green = Transition  |  Red = Terminating transition  |  Dark blue = Initial step  |  Click any shape to see detail'
+    lc.font      = Font(name='Calibri', size=8, color='64748B', italic=True)
+    lc.alignment = Alignment(horizontal='left', vertical='center')
+
+    return ws
+
+def build_detail_sheet_diag(wb, label, data, diag_name, first=False):
+    """Build the _L detail sheet with back-links to the diagram."""
+    detail_name = (label[:28] + '_L')[:31]
+    ws = wb.active if first else wb.create_sheet(title=detail_name)
+    if first: ws.title = detail_name
+
+    NCOLS = 6
+    for ci, w in enumerate([26,10,32,10,14,14], 1):
+        ws.column_dimensions[get_column_letter(ci)].width = w
+    ws.freeze_panes = 'A3'
+
+    NAVY_F = PatternFill('solid', start_color='0F172A')
+    BLUE_H = PatternFill('solid', start_color='1E3A8A')
+    BLUE_S = PatternFill('solid', start_color='2563EB')
+    GREEN_H= PatternFill('solid', start_color='065F46')
+    ALT_   = PatternFill('solid', start_color='EFF6FF')
+    ALT_G_ = PatternFill('solid', start_color='ECFDF5')
+    WHITE_ = PatternFill('solid', start_color='FFFFFF')
+    THIN__ = Side(style='thin', color='CBD5E1')
+    BORD__ = Border(left=THIN__, right=THIN__, top=THIN__, bottom=THIN__)
+
+    def sc(r, c, val='', bold=False, sz=10, fc='0F172A',
+           fill=None, h='left', wrap=False, merge_to=None):
+        cell = ws.cell(row=r, column=c,
+                       value=str(val) if val is not None else '')
+        cell.font      = Font(name='Calibri', bold=bold, size=sz, color=fc)
+        cell.fill      = fill or WHITE_
+        cell.alignment = Alignment(horizontal=h, vertical='top', wrap_text=wrap)
+        cell.border    = BORD__
+        if merge_to:
+            ws.merge_cells(start_row=r, start_column=c,
+                           end_row=r, end_column=merge_to)
+        return cell
+
+    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=NCOLS)
+    t = ws.cell(row=1, column=1,
+        value='  Detail: {}   |   Click step or transition to return to diagram'.format(label))
+    t.font = Font(name='Calibri', bold=True, size=12, color='FFFFFF')
+    t.fill = NAVY_F
+    t.alignment = Alignment(horizontal='left', vertical='center')
+    ws.row_dimensions[1].height = 24
+
+    for ci, h in enumerate(['Step / Transition','Action ID','Description',
+                             'Qualifier','Expression','Delay / Confirm'], 1):
+        sc(2, ci, h, bold=True, fc='FFFFFF', fill=BLUE_H, h='center')
+    ws.row_dimensions[2].height = 16
+
+    step_rows, trans_rows = {}, {}
+    row = 3
+
+    for si, (sname, sdata) in enumerate(data['ordered_steps']):
+        step_rows[sname] = row
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=NCOLS)
+        sh = ws.cell(row=row, column=1)
+        sh.value = '=HYPERLINK("#\'{}\'!A1","  STEP {}:  {}   ({} actions)")'.format(
+            diag_name, si+1, sname, len(sdata['actions']))
+        sh.font  = Font(name='Calibri', bold=True, size=10, color='FFFFFF')
+        sh.fill  = BLUE_S
+        sh.alignment = Alignment(horizontal='left', vertical='center')
+        sh.border= BORD__
+        ws.row_dimensions[row].height = 17
+        row += 1
+
+        for ai, a in enumerate(sdata['actions']):
+            f = ALT_ if ai % 2 == 0 else WHITE_
+            delay   = a.get('delay_time','') or a.get('delay_expression','') or ''
+            confirm = a.get('confirm_expression','') or ''
+            extra   = ' / '.join(x for x in [delay, confirm] if x)
+            sc(row,1, sname,             fill=f)
+            sc(row,2, a['action'],       fill=f, h='center')
+            sc(row,3, a['description'],  fill=f, wrap=True)
+            sc(row,4, a['qualifier'],    fill=f, h='center')
+            sc(row,5, a['expression'],   fill=f, wrap=True)
+            sc(row,6, extra,             fill=f, wrap=True)
+            ws.row_dimensions[row].height = max(15, min(60,
+                15*max(1, len(a.get('expression',''))//55+1)))
+            row += 1
+
+        tlist = data['step_to_trans'].get(sname, [])
+        for ti, tname in enumerate(tlist):
+            tr = data['transitions'][tname]
+            trans_rows[tname] = row
+            term = 'END' if tr.get('termination') == 'T' else 'NEXT'
+            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=NCOLS)
+            th = ws.cell(row=row, column=1)
+            th.value = '=HYPERLINK("#\'{}\'!A1","  \u25c6 {}   ({})")'.format(
+                diag_name, tname, term)
+            th.font  = Font(name='Calibri', bold=True, size=9, color='FFFFFF')
+            th.fill  = GREEN_H
+            th.alignment = Alignment(horizontal='left', vertical='center')
+            th.border= BORD__
+            ws.row_dimensions[row].height = 15
+            row += 1
+
+            f = ALT_G_ if ti % 2 == 0 else WHITE_
+            sc(row,1, tname,                   fill=f, bold=True)
+            sc(row,2, term,                    fill=f, h='center')
+            sc(row,3, tr.get('description',''),fill=f, wrap=True)
+            sc(row,4, '',                      fill=f)
+            ws.merge_cells(start_row=row, start_column=5, end_row=row, end_column=NCOLS)
+            ec = ws.cell(row=row, column=5, value=tr.get('expression',''))
+            ec.font      = Font(name='Calibri', size=9, italic=True, color='0F172A')
+            ec.fill      = f
+            ec.alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
+            ec.border    = BORD__
+            ws.row_dimensions[row].height = max(15, min(60,
+                15*max(1, len(tr.get('expression',''))//80+1)))
+            row += 1
+
+        for ci in range(1, NCOLS+1):
+            sc(row, ci, '', fill=WHITE_)
+        ws.row_dimensions[row].height = 6
+        row += 1
+
+    return ws, detail_name, step_rows, trans_rows
+
+def build_phase_diagram_excel(blocks, fname, opts):
+    """Build an Excel workbook with SFC diagram + detail sheets per block."""
+    wb   = openpyxl.Workbook()
+    used = set()
+    first = True
+
+    for fb_name, data in blocks.items():
+        lbl = derive_phase_label(fb_name, data.get('instance_name',''),
+                                 data.get('description',''), used)
+        diag_name = (lbl[:27] + '_D')[:31]
+
+        # Detail sheet first (so we have row numbers for hyperlinks)
+        _, detail_name, step_rows, trans_rows = build_detail_sheet_diag(
+            wb, lbl, data, diag_name, first)
+        first = False
+        data['_detail_rows']       = step_rows
+        data['_trans_detail_rows'] = trans_rows
+
+        # Diagram sheet
+        build_sfc_diagram_sheet(wb, lbl, data, detail_name)
+
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    return buf
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # DDS WORD BUILDER
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1092,6 +1390,8 @@ def parse_and_build(text, fhx_type, fname, opts, output_format='excel'):
             raise ValueError('No phase logic blocks found. Is this a Phase FHX?')
         if output_format == 'word':
             return build_dds_word(data, fhx_type, fname, opts), None
+        if output_format == 'diagram':
+            return build_phase_diagram_excel(data, fname, opts), None
         buf = build_phase_excel(data, fname, opts)
 
     elif fhx_type == 'em_cd':
@@ -1163,6 +1463,67 @@ def detect():
         # Always return JSON, never HTML
         return jsonify({'type': 'phase', 'fb_count': 0, 'steps': 0,
                         'actions': 0, 'commands': [], 'warning': str(e)}), 200
+
+@app.route('/diagram')
+def diagram_page():
+    return send_file('diagram.html')
+
+@app.route('/parse', methods=['POST'])
+def parse_for_diagram():
+    """Parse FHX and return structured JSON for the web diagram viewer."""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file'}), 400
+        f        = request.files['file']
+        raw      = f.read()
+        text     = decode_fhx(raw)
+        fname    = re.sub(r'\.fhx$', '', f.filename, flags=re.IGNORECASE)
+        fhx_type = detect_fhx_type(text)
+
+        if fhx_type != 'phase':
+            return jsonify({'error': 'SFC diagram is currently supported for Phase FHX only.'}), 400
+
+        blocks = parse_phase_fhx(text)
+        used   = set()
+        result = {'filename': fname, 'type': fhx_type, 'blocks': {}}
+
+        for fb_name, data in blocks.items():
+            lbl = derive_phase_label(fb_name, data.get('instance_name',''),
+                                     data.get('description',''), used)
+            if not data['ordered_steps']:
+                continue
+
+            steps = []
+            for sname, sdata in data['ordered_steps']:
+                steps.append({
+                    'name':        sname,
+                    'x':           sdata['x'],
+                    'y':           sdata['y'],
+                    'actions':     sdata['actions'],
+                    'transitions': data['step_to_trans'].get(sname, [])
+                })
+
+            trans = {}
+            for tname, tdata in data['transitions'].items():
+                trans[tname] = {
+                    'name':        tname,
+                    'x':           tdata['x'],
+                    'y':           tdata['y'],
+                    'description': tdata['description'],
+                    'expression':  tdata['expression'],
+                    'termination': tdata['termination']
+                }
+
+            result['blocks'][lbl] = {
+                'label':       lbl,
+                'description': data['description'],
+                'steps':       steps,
+                'transitions': trans
+            }
+
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/convert', methods=['POST'])
 def convert():
