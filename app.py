@@ -126,10 +126,10 @@ def write_sfc_sheet(wb, label, title_fill, step_fill, data, opts, fname_desc):
     ws.freeze_panes = 'A3'
 
     # Title
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=NCOLS)
-    t = ws.cell(row=1, column=1, value=f"  {fname_desc}")
-    t.font = wf(True,12,'FFFFFF'); t.fill = NAVY
-    t.alignment = Alignment(horizontal='left', vertical='center'); t.border = BORD
+    _safe_merge_and_write(ws, 1, 1, 1, NCOLS,
+        value=f"  {fname_desc}",
+        font=wf(True,12,'FFFFFF'), fill=NAVY,
+        alignment=Alignment(horizontal='left', vertical='center'), border=BORD)
     ws.row_dimensions[1].height = 24
 
     # Column headers
@@ -282,10 +282,10 @@ def build_phase_excel(blocks, fname, opts):
 
     if opts.get('summary', True):
         ws = wb.active; ws.title = 'SUMMARY'
-        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=8)
-        t = ws.cell(row=1, column=1, value=f"  {fname}  —  DeltaV Phase Export Logic Summary")
-        t.font = wf(True,13,'FFFFFF'); t.fill = NAVY
-        t.alignment = Alignment(horizontal='left', vertical='center'); t.border = BORD
+        _safe_merge_and_write(ws, 1, 1, 1, 8,
+            value=f"  {fname}  —  DeltaV Phase Export Logic Summary",
+            font=wf(True,13,'FFFFFF'), fill=NAVY,
+            alignment=Alignment(horizontal='left', vertical='center'), border=BORD)
         ws.row_dimensions[1].height = 28
         for ci, h in enumerate(['Logic Block','FB Name','Description','Steps',
                                  'Actions','Transitions','Orphan Trans.','Sheet Tab'], 1):
@@ -383,10 +383,10 @@ def build_cdem_excel(commands, fname, opts):
         ws = wb.active; ws.title = 'SUMMARY'
         em_name = commands[0]['em_name'] if commands else fname
         em_desc = commands[0]['em_description'] if commands else ''
-        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=8)
-        t = ws.cell(row=1, column=1, value=f"  {em_name}  —  Command Driven EM Logic Summary")
-        t.font = wf(True,13,'FFFFFF'); t.fill = NAVY
-        t.alignment = Alignment(horizontal='left', vertical='center'); t.border = BORD
+        _safe_merge_and_write(ws, 1, 1, 1, 8,
+            value=f"  {em_name}  —  Command Driven EM Logic Summary",
+            font=wf(True,13,'FFFFFF'), fill=NAVY,
+            alignment=Alignment(horizontal='left', vertical='center'), border=BORD)
         ws.row_dimensions[1].height = 28
         ws.merge_cells(start_row=2, start_column=1, end_row=2, end_column=8)
         s = ws.cell(row=2, column=1, value=f"  {em_desc}")
@@ -535,11 +535,10 @@ def build_sdem_excel(em_list, fname, opts):
         NCOLS_T = 3 + len(devices) + 1
 
         # Title
-        ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=NCOLS_T)
-        t = ws.cell(row=1, column=1,
-                    value=f"  {em_name}  —  State Driven EM  |  {em_desc}")
-        t.font = wf(True,13,'FFFFFF'); t.fill = NAVY
-        t.alignment = Alignment(horizontal='left', vertical='center'); t.border = BORD
+        _safe_merge_and_write(ws, 1, 1, 1, NCOLS_T,
+            value=f"  {em_name}  —  State Driven EM  |  {em_desc}",
+            font=wf(True,13,'FFFFFF'), fill=NAVY,
+            alignment=Alignment(horizontal='left', vertical='center'), border=BORD)
         ws.row_dimensions[1].height = 28
 
         # Device header row
@@ -586,10 +585,10 @@ def build_sdem_excel(em_list, fname, opts):
 
         # Legend
         lr = len(states)+5
-        ws.merge_cells(start_row=lr, start_column=1, end_row=lr, end_column=NCOLS_T)
-        lh = ws.cell(row=lr, column=1, value='  LEGEND')
-        lh.font = wf(True,10,'FFFFFF'); lh.fill = BLUE_H
-        lh.alignment = Alignment(horizontal='left', vertical='center'); lh.border = BORD
+        _safe_merge_and_write(ws, lr, 1, lr, NCOLS_T,
+            value='  LEGEND',
+            font=wf(True,10,'FFFFFF'), fill=BLUE_H,
+            alignment=Alignment(horizontal='left', vertical='center'), border=BORD)
         ws.row_dimensions[lr].height = 16
         for li, (fill_c, lbl) in enumerate([
             (OPEN_F,  'OPEN  —  device commanded open / active'),
@@ -599,10 +598,10 @@ def build_sdem_excel(em_list, fname, opts):
         ]):
             rr = lr+1+li
             sc(ws, rr, 1, '', fill=fill_c)
-            ws.merge_cells(start_row=rr, start_column=2, end_row=rr, end_column=NCOLS_T)
-            lc = ws.cell(row=rr, column=2, value=f'  {lbl}')
-            lc.font = wf(False,10); lc.fill = WHITE
-            lc.alignment = Alignment(horizontal='left', vertical='center'); lc.border = BORD
+            _safe_merge_and_write(ws, rr, 2, rr, NCOLS_T,
+                value=f'  {lbl}',
+                font=wf(False,10), fill=WHITE,
+                alignment=Alignment(horizontal='left', vertical='center'), border=BORD)
             ws.row_dimensions[rr].height = 15
 
         # Column widths
@@ -772,12 +771,12 @@ def build_sfc_diagram_sheet(wb, label, data, detail_name):
 
     # Title
     ws.row_dimensions[1].height = 22
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=max_gc)
-    tc = ws.cell(row=1, column=1)
-    tc.value     = '  SFC: {}   |   Click step (blue) or transition (green/red) for detail'.format(label)
-    tc.font      = Font(name='Calibri', bold=True, size=10, color='FFFFFF')
-    tc.fill      = PatternFill('solid', start_color='0F172A')
-    tc.alignment = Alignment(horizontal='left', vertical='center')
+    _safe_merge_and_write(ws, 1, 1, 1, max_gc,
+        value='  SFC: {}   |   Click step (blue) or transition (green/red) for detail'.format(label),
+        font=Font(name='Calibri', bold=True, size=10, color='FFFFFF'),
+        fill=PatternFill('solid', start_color='0F172A'),
+        alignment=Alignment(horizontal='left', vertical='center'),
+        border=Border())
 
     arrow_fill = PatternFill('solid', start_color='94A3B8')
     step_rows  = data.get('_detail_rows', {})
@@ -817,11 +816,12 @@ def build_sfc_diagram_sheet(wb, label, data, detail_name):
     # Legend
     lr = max_gr + 2
     ws.row_dimensions[lr].height = 16
-    ws.merge_cells(start_row=lr, start_column=1, end_row=lr, end_column=max_gc)
-    lc = ws.cell(row=lr, column=1)
-    lc.value     = '  Blue = Step  |  Green = Transition  |  Red = Terminating transition  |  Dark blue = Initial step  |  Click any shape to see detail'
-    lc.font      = Font(name='Calibri', size=8, color='64748B', italic=True)
-    lc.alignment = Alignment(horizontal='left', vertical='center')
+    _safe_merge_and_write(ws, lr, 1, lr, max_gc,
+        value='  Blue = Step  |  Green = Transition  |  Red = Terminating transition  |  Dark blue = Initial step  |  Click any shape to see detail',
+        font=Font(name='Calibri', size=8, color='64748B', italic=True),
+        fill=PatternFill('solid', start_color='F8FAFC'),
+        alignment=Alignment(horizontal='left', vertical='center'),
+        border=Border())
 
     return ws
 

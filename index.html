@@ -91,31 +91,39 @@ header{
 
 /* ── WIZARD STEPS ── */
 .wizard{
-  max-width:780px;margin:0 auto;
-  display:flex;flex-direction:column;gap:0;
+  max-width:680px;margin:0 auto;
+  display:flex;flex-direction:column;
 }
 
-/* Step connector — line must align with center of 32px circle at left:20px padding */
+/* Step connector */
 .step-connector{
-  padding:0 0 0 36px;   /* 20px step-hd padding + 16px = center of 32px circle */
+  padding:0 0 0 36px;
 }
 .step-connector .line{
-  width:2px;height:20px;background:var(--bd);
+  width:2px;height:18px;background:var(--bd);
 }
 .step-connector .line.done{background:var(--sage100)}
 
 /* Step container */
 .wstep{
   border:1px solid var(--bd);border-radius:var(--r12);
-  background:var(--white);overflow:hidden;
+  background:var(--white);
   transition:border-color .2s,box-shadow .2s;
 }
-.wstep.active{border-color:var(--bd2);box-shadow:0 2px 12px rgba(0,0,0,.06)}
+.wstep.active{
+  border-color:var(--bd2);
+  box-shadow:0 2px 16px rgba(0,0,0,.07);
+}
 .wstep.done{border-color:var(--sage100)}
-.wstep.locked{border-color:var(--bd);background:var(--s1)}
+.wstep.locked{
+  background:var(--s1);
+  border-color:var(--bd);
+}
 .wstep.locked .step-title{color:var(--dim)}
 .wstep.locked .step-desc{color:var(--dim)}
 .wstep.locked .step-hd{cursor:default}
+/* Locked steps show NO body content at all */
+.wstep.locked .step-body{display:none!important}
 
 /* Step header */
 .step-hd{
