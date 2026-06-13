@@ -95,12 +95,12 @@ header{
   display:flex;flex-direction:column;gap:0;
 }
 
-/* Step connector */
+/* Step connector — line must align with center of 32px circle at left:20px padding */
 .step-connector{
-  display:flex;align-items:center;padding:0 28px;
+  padding:0 0 0 36px;   /* 20px step-hd padding + 16px = center of 32px circle */
 }
 .step-connector .line{
-  width:2px;height:24px;background:var(--bd);margin-left:19px;
+  width:2px;height:20px;background:var(--bd);
 }
 .step-connector .line.done{background:var(--sage100)}
 
@@ -108,11 +108,14 @@ header{
 .wstep{
   border:1px solid var(--bd);border-radius:var(--r12);
   background:var(--white);overflow:hidden;
-  transition:box-shadow .2s;
+  transition:border-color .2s,box-shadow .2s;
 }
 .wstep.active{border-color:var(--bd2);box-shadow:0 2px 12px rgba(0,0,0,.06)}
-.wstep.done{border-color:var(--sage100);background:var(--white)}
-.wstep.locked{opacity:.55;pointer-events:none}
+.wstep.done{border-color:var(--sage100)}
+.wstep.locked{border-color:var(--bd);background:var(--s1)}
+.wstep.locked .step-title{color:var(--dim)}
+.wstep.locked .step-desc{color:var(--dim)}
+.wstep.locked .step-hd{cursor:default}
 
 /* Step header */
 .step-hd{
