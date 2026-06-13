@@ -86,22 +86,22 @@ def parse_sfc(sfc_block):
 # SHARED EXCEL STYLES
 # ═══════════════════════════════════════════════════════════════════════════════
 
-NAVY    = PatternFill('solid', start_color='1E3A5F')
-BLUE_H  = PatternFill('solid', start_color='2C4A72')
-BLUE_S  = PatternFill('solid', start_color='3B6EA8')
-TEAL_S  = PatternFill('solid', start_color='2B6070')
-GREEN_S = PatternFill('solid', start_color='3D6B4F')
-ORANGE_H= PatternFill('solid', start_color='6B5230')
-OPEN_F  = PatternFill('solid', start_color='D4EDDA')
-CLOSE_F = PatternFill('solid', start_color='F5DDDD')
-DC_F    = PatternFill('solid', start_color='FDFAE8')
-ALT     = PatternFill('solid', start_color='EDF2F8')
-ALT_G   = PatternFill('solid', start_color='EDF5EC')
-ALTG2   = PatternFill('solid', start_color='F4F9F3')
-ALT_ROW = PatternFill('solid', start_color='F5F5F3')
+NAVY    = PatternFill('solid', start_color='2C3A4A')
+BLUE_H  = PatternFill('solid', start_color='3A4F5E')
+BLUE_S  = PatternFill('solid', start_color='4A6B7A')
+TEAL_S  = PatternFill('solid', start_color='3D5C68')
+GREEN_S = PatternFill('solid', start_color='4A6B52')
+ORANGE_H= PatternFill('solid', start_color='5C4A30')
+OPEN_F  = PatternFill('solid', start_color='DDE8DC')
+CLOSE_F = PatternFill('solid', start_color='EBD8D5')
+DC_F    = PatternFill('solid', start_color='F0EDE0')
+ALT     = PatternFill('solid', start_color='F3F4F2')
+ALT_G   = PatternFill('solid', start_color='F2F4F1')
+ALTG2   = PatternFill('solid', start_color='F2F1EE')
+ALT_ROW = PatternFill('solid', start_color='F2F1EE')
 WHITE   = PatternFill('solid', start_color='FFFFFF')
-DIS_F   = PatternFill('solid', start_color='F0F0EE')
-THIN    = Side(style='thin', color='AAAAAA')
+DIS_F   = PatternFill('solid', start_color='EBEBEA')
+THIN    = Side(style='thin', color='C8C6BF')
 BORD    = Border(left=THIN, right=THIN, top=THIN, bottom=THIN)
 NCOLS   = 10
 COL_W   = [14, 22, 32, 10, 10, 58, 10, 38, 34, 14]
@@ -142,12 +142,13 @@ def write_sfc_sheet(wb, label, title_fill, step_fill, data, opts, fname_desc):
 
     row = 3
     for si, (sn, sd) in enumerate(data['ordered_steps']):
-        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=NCOLS)
-        sh = ws.cell(row=row, column=1,
-                     value=f"  STEP {si+1}:  {sn}   "
-                           f"({len(sd['actions'])} action{'s' if len(sd['actions'])!=1 else ''})")
-        sh.font = wf(True,10,'FFFFFF'); sh.fill = step_fill
-        sh.alignment = Alignment(horizontal='left', vertical='center'); sh.border = BORD
+        _safe_merge_and_write(
+            ws, row, 1, row, NCOLS,
+            value=f"  STEP {si+1}:  {sn}   ({len(sd['actions'])} action{'s' if len(sd['actions'])!=1 else ''})",
+            font=wf(True,10,'FFFFFF'), fill=step_fill,
+            alignment=Alignment(horizontal='left', vertical='center'),
+            border=BORD
+        )
         ws.row_dimensions[row].height = 17; row += 1
 
         for ai, a in enumerate(sd['actions']):
@@ -170,12 +171,13 @@ def write_sfc_sheet(wb, label, title_fill, step_fill, data, opts, fname_desc):
         if opts.get('transitions', True):
             tl = data['step_to_trans'].get(sn, [])
             if tl:
-                ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=NCOLS)
-                th = ws.cell(row=row, column=1,
-                             value=f"  ↓  TRANSITION{'S' if len(tl)>1 else ''} "
-                                   f"FROM  {sn}  ({len(tl)})")
-                th.font = wf(True,9,'FFFFFF'); th.fill = GREEN_S
-                th.alignment = Alignment(horizontal='left', vertical='center'); th.border = BORD
+                _safe_merge_and_write(
+                    ws, row, 1, row, NCOLS,
+                    value=f"  ↓  TRANSITION{'S' if len(tl)>1 else ''} FROM  {sn}  ({len(tl)})",
+                    font=wf(True,9,'FFFFFF'), fill=GREEN_S,
+                    alignment=Alignment(horizontal='left', vertical='center'),
+                    border=BORD
+                )
                 ws.row_dimensions[row].height = 15; row += 1
 
                 for ti, tn in enumerate(tl):
@@ -187,11 +189,13 @@ def write_sfc_sheet(wb, label, title_fill, step_fill, data, opts, fname_desc):
                     sc(ws,row,4,'⏹ END' if tr['termination']=='T' else '→ NEXT',
                        fill=f, h='center')
                     sc(ws,row,5,'',fill=f)
-                    ws.merge_cells(start_row=row, start_column=6, end_row=row, end_column=NCOLS)
-                    ec = ws.cell(row=row, column=6,
-                                 value=tr['expression'] if opts.get('expressions',True) else '—')
-                    ec.font = wf(); ec.fill = f
-                    ec.alignment = wa('left',True); ec.border = BORD
+                    _safe_merge_and_write(
+                        ws, row, 6, row, NCOLS,
+                        value=tr['expression'] if opts.get('expressions',True) else '—',
+                        font=wf(), fill=f,
+                        alignment=wa('left',True),
+                        border=BORD
+                    )
                     ws.row_dimensions[row].height = max(15, min(60,
                         15*max(1, len(tr.get('expression',''))//80+1)))
                     row += 1
@@ -839,7 +843,7 @@ def build_detail_sheet_diag(wb, label, data, diag_name, first=False):
     ALT_   = PatternFill('solid', start_color='EFF6FF')
     ALT_G_ = PatternFill('solid', start_color='ECFDF5')
     WHITE_ = PatternFill('solid', start_color='FFFFFF')
-    THIN__ = Side(style='thin', color='CBD5E1')
+    THIN__ = Side(style='thin', color='D0CEC6')
     BORD__ = Border(left=THIN__, right=THIN__, top=THIN__, bottom=THIN__)
 
     def sc(r, c, val='', bold=False, sz=10, fc='0F172A',
@@ -855,12 +859,14 @@ def build_detail_sheet_diag(wb, label, data, diag_name, first=False):
                            end_row=r, end_column=merge_to)
         return cell
 
-    ws.merge_cells(start_row=1, start_column=1, end_row=1, end_column=NCOLS)
-    t = ws.cell(row=1, column=1,
-        value='  Detail: {}   |   Click step or transition to return to diagram'.format(label))
-    t.font = Font(name='Calibri', bold=True, size=12, color='FFFFFF')
-    t.fill = NAVY_F
-    t.alignment = Alignment(horizontal='left', vertical='center')
+    _safe_merge_and_write(
+        ws, 1, 1, 1, NCOLS,
+        value='  Detail: {}   |   Click step or transition to return to diagram'.format(label),
+        font=Font(name='Calibri', bold=True, size=12, color='FFFFFF'),
+        fill=NAVY_F,
+        alignment=Alignment(horizontal='left', vertical='center'),
+        border=BORD__
+    )
     ws.row_dimensions[1].height = 24
 
     for ci, h in enumerate(['Step / Transition','Action ID','Description',
@@ -873,14 +879,15 @@ def build_detail_sheet_diag(wb, label, data, diag_name, first=False):
 
     for si, (sname, sdata) in enumerate(data['ordered_steps']):
         step_rows[sname] = row
-        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=NCOLS)
-        sh = ws.cell(row=row, column=1)
-        sh.value = '=HYPERLINK("#\'{}\'!A1","  STEP {}:  {}   ({} actions)")'.format(
-            diag_name, si+1, sname, len(sdata['actions']))
-        sh.font  = Font(name='Calibri', bold=True, size=10, color='FFFFFF')
-        sh.fill  = BLUE_S
-        sh.alignment = Alignment(horizontal='left', vertical='center')
-        sh.border= BORD__
+        _safe_merge_and_write(
+            ws, row, 1, row, NCOLS,
+            value='=HYPERLINK("#\'{}\'!A1","  STEP {}:  {}   ({} actions)")'.format(
+                diag_name, si+1, sname, len(sdata['actions'])),
+            font=Font(name='Calibri', bold=True, size=10, color='FFFFFF'),
+            fill=BLUE_S,
+            alignment=Alignment(horizontal='left', vertical='center'),
+            border=BORD__
+        )
         ws.row_dimensions[row].height = 17
         row += 1
 
@@ -904,14 +911,15 @@ def build_detail_sheet_diag(wb, label, data, diag_name, first=False):
             tr = data['transitions'][tname]
             trans_rows[tname] = row
             term = 'END' if tr.get('termination') == 'T' else 'NEXT'
-            ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=NCOLS)
-            th = ws.cell(row=row, column=1)
-            th.value = '=HYPERLINK("#\'{}\'!A1","  \u25c6 {}   ({})")'.format(
-                diag_name, tname, term)
-            th.font  = Font(name='Calibri', bold=True, size=9, color='FFFFFF')
-            th.fill  = GREEN_H
-            th.alignment = Alignment(horizontal='left', vertical='center')
-            th.border= BORD__
+            _safe_merge_and_write(
+                ws, row, 1, row, NCOLS,
+                value='=HYPERLINK("#\'{}\'!A1","  \u25c6 {}   ({})")'.format(
+                    diag_name, tname, term),
+                font=Font(name='Calibri', bold=True, size=9, color='FFFFFF'),
+                fill=GREEN_H,
+                alignment=Alignment(horizontal='left', vertical='center'),
+                border=BORD__
+            )
             ws.row_dimensions[row].height = 15
             row += 1
 
@@ -920,12 +928,14 @@ def build_detail_sheet_diag(wb, label, data, diag_name, first=False):
             sc(row,2, term,                    fill=f, h='center')
             sc(row,3, tr.get('description',''),fill=f, wrap=True)
             sc(row,4, '',                      fill=f)
-            ws.merge_cells(start_row=row, start_column=5, end_row=row, end_column=NCOLS)
-            ec = ws.cell(row=row, column=5, value=tr.get('expression',''))
-            ec.font      = Font(name='Calibri', size=9, italic=True, color='0F172A')
-            ec.fill      = f
-            ec.alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
-            ec.border    = BORD__
+            _safe_merge_and_write(
+                ws, row, 5, row, NCOLS,
+                value=tr.get('expression',''),
+                font=Font(name='Calibri', size=9, italic=True, color='0F172A'),
+                fill=f,
+                alignment=Alignment(horizontal='left', vertical='top', wrap_text=True),
+                border=BORD__
+            )
             ws.row_dimensions[row].height = max(15, min(60,
                 15*max(1, len(tr.get('expression',''))//80+1)))
             row += 1
@@ -1690,9 +1700,9 @@ def batch_convert():
             div_ws.sheet_properties.tabColor = '1F3864'
             div_ws['A1'] = fname
             div_ws['A1'].font  = Font(name='Calibri', bold=True, size=14, color='FFFFFF')
-            div_ws['A1'].fill  = PatternFill('solid', start_color='2C4A72')
+            div_ws['A1'].fill  = PatternFill('solid', start_color='3A4F5E')
             div_ws['A2'] = f'Type: {fhx_type.upper()}   |   Sheets: {len(src_wb.sheetnames)}'
-            div_ws['A2'].font  = Font(name='Calibri', size=11, color='AAAAAA')
+            div_ws['A2'].font  = Font(name='Calibri', size=11, color='C8C6BF')
             div_ws.column_dimensions['A'].width = 60
 
             # Copy each sheet
@@ -1742,16 +1752,16 @@ def batch_convert():
         summ_ws.sheet_properties.tabColor = '0D1B4B'
         summ_ws['A1'] = 'Batch Export Summary'
         summ_ws['A1'].font = Font(name='Calibri', bold=True, size=14, color='FFFFFF')
-        summ_ws['A1'].fill = PatternFill('solid', start_color='1E3A5F')
+        summ_ws['A1'].fill = PatternFill('solid', start_color='2C3A4A')
         summ_ws['B1'] = datetime.datetime.now().strftime('%d-%b-%Y %H:%M')
-        summ_ws['B1'].font = Font(name='Calibri', size=11, color='AAAAAA')
+        summ_ws['B1'].font = Font(name='Calibri', size=11, color='C8C6BF')
         summ_ws.merge_cells('A1:F1')
 
         headers = ['File', 'Type', 'Sheets', 'Steps', 'Actions', 'Status']
         for ci, h in enumerate(headers, 1):
             c = summ_ws.cell(row=2, column=ci, value=h)
             c.font = Font(name='Calibri', bold=True, color='FFFFFF', size=10)
-            c.fill = PatternFill('solid', start_color='2C4A72')
+            c.fill = PatternFill('solid', start_color='3A4F5E')
 
         for ri, row_data in enumerate(batch_summary_rows):
             ri_sheet = ri + 3

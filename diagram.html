@@ -446,12 +446,22 @@ function renderBlock(block){
   var arrowG=ns('g');
 
   function orthoPath(x1,y1,x2,y2){
-    // Straight orthogonal line: go vertical then horizontal then vertical
-    var midY=Math.round((y1+y2)/2);
-    if(Math.abs(x1-x2)<4){
-      // Same column — straight vertical
-      return 'M'+x1+','+y1+' L'+x2+','+y2;
+    // Prefer straight vertical when x positions are close enough
+    // "Close enough" = within half a step width (70px)
+    if(Math.abs(x1-x2) < 70){
+      // Snap to the midpoint X and go straight
+      var mx=Math.round((x1+x2)/2);
+      if(Math.abs(x1-x2)<4){
+        // Exactly aligned — pure vertical
+        return 'M'+x1+','+y1+' L'+x2+','+y2;
+      }
+      // Very close — small horizontal jog then straight down
+      return 'M'+x1+','+y1+
+             ' L'+mx+','+y1+
+             ' L'+mx+','+y2;
     }
+    // Further apart — proper elbow: down to midpoint, across, then down
+    var midY=Math.round((y1+y2)/2);
     return 'M'+x1+','+y1+
            ' L'+x1+','+midY+
            ' L'+x2+','+midY+
