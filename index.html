@@ -431,38 +431,7 @@ header{
       <div class="step-badge" id="s1badge">Waiting</div>
     </div>
     <div class="step-body">
-      <label class="drop-zone" id="dropZone">
-        <input type="file" id="fileInput" multiple/>
-        <div class="dz-icon">
-          <svg viewBox="0 0 22 22"><rect x="2" y="4" width="18" height="15" rx="2"/><polyline points="8,4 11,1 14,4"/><line x1="11" y1="8" x2="11" y2="15"/><line x1="7" y1="12" x2="11" y2="15"/><line x1="15" y1="12" x2="11" y2="15"/></svg>
-        </div>
-        <div class="dz-title">Click to browse or drag &amp; drop</div>
-        <div class="dz-sub">Supports Phase, Command Driven EM and State Driven EM exports</div>
-      </label>
-
-      <div class="file-card" id="fileCard">
-        <div class="fc-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
-        <div style="flex:1;min-width:0">
-          <div class="fc-name" id="fcName">—</div>
-          <div class="fc-meta" id="fcMeta">—</div>
-        </div>
-        <button class="fc-rm" onclick="clearFile(event)">✕</button>
-      </div>
-
-      <div class="detected-row" id="detRow">
-        <span class="det-label">Detected type</span>
-        <div class="det-pills" id="detPills">
-          <span class="det-pill" id="dpPhase" onclick="setType('phase')">Phase</span>
-          <span class="det-pill" id="dpCD"    onclick="setType('em_cd')">Command EM</span>
-          <span class="det-pill" id="dpSD"    onclick="setType('em_sd')">State EM</span>
-        </div>
-      </div>
-
-      <div class="stats-strip" id="statsStrip">
-        <div class="stat-item"><div class="stat-n" id="sA">—</div><div class="stat-l" id="sAL">Blocks</div></div>
-        <div class="stat-item"><div class="stat-n" id="sB">—</div><div class="stat-l" id="sBL">Steps</div></div>
-        <div class="stat-item"><div class="stat-n" id="sC">—</div><div class="stat-l" id="sCL">Actions</div></div>
-      </div>
+      <div style="padding:40px;text-align:center;color:#999;border:1px solid #ddd;border-radius:8px;">STEP 1 BODY STRIPPED — TEST BUILD</div>
     </div>
   </div>
 
@@ -675,7 +644,7 @@ function optOn(id){return g(id).classList.contains('on');}
 function sz(b){return b<1048576?(b/1024).toFixed(1)+' KB':(b/1048576).toFixed(2)+' MB';}
 
 // ── FILE HANDLING ────────────────────────────────────────────────────────────
-var dz=g('dropZone'), fi=g('fileInput');
+var dz=g('dropZone')||document.createElement('div'), fi=g('fileInput')||document.createElement('input');
 dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('over');});
 dz.addEventListener('dragleave',function(){dz.classList.remove('over');});
 dz.addEventListener('drop',function(e){
