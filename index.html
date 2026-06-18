@@ -154,6 +154,7 @@ header{
 
 /* ── STEP 1 — FILE ── */
 .drop-zone{
+  display:block;
   border:2px dashed var(--bd2);border-radius:var(--r10);
   padding:36px 24px;text-align:center;cursor:pointer;
   transition:all .18s;background:var(--s1);position:relative;
@@ -502,6 +503,11 @@ header{
             <div class="cc-desc">Self-contained page: hover, click-to-expand, zoom, searchable table</div>
             <div class="cc-ext">.html · Phase only</div>
           </div>
+          <div class="cfg-card" id="fmtDA" onclick="setFmt('data_excel')" title="Phase only">
+            <div class="cc-top"><div class="cc-icon">📋</div><div class="cc-name">Data Workbook</div></div>
+            <div class="cc-desc">Summary, Parameters, Monitors, Actions as filterable tables + diagrams</div>
+            <div class="cc-ext">.xlsx · Phase only</div>
+          </div>
         </div>
       </div>
 
@@ -680,10 +686,10 @@ function setType(t){
 // ── FORMAT ──────────────────────────────────────────────────────────────────
 function setFmt(f){
   outFmt=f;
-  ['fmtXL','fmtWD','fmtDG','fmtHT'].forEach(function(id){
+  ['fmtXL','fmtWD','fmtDG','fmtHT','fmtDA'].forEach(function(id){
     var el=g(id); if(el) el.className='cfg-card';
   });
-  var map={excel:['fmtXL','on-xl'], word:['fmtWD','on-wd'], diagram:['fmtDG','on-dg'], diagram_html:['fmtHT','on-dg']};
+  var map={excel:['fmtXL','on-xl'], word:['fmtWD','on-wd'], diagram:['fmtDG','on-dg'], diagram_html:['fmtHT','on-dg'], data_excel:['fmtDA','on-xl']};
   if(map[f] && g(map[f][0])) g(map[f][0]).className='cfg-card '+map[f][1];
   var rd=g('rowDiagram'); if(rd) rd.className='opt-row'+((f==='diagram'||f==='diagram_html')?'':' hidden');
 }
@@ -856,9 +862,9 @@ function run(){
     })
     .then(function(blob){
       resultBlob=blob;
-      var isW=outFmt==='word',isDG=outFmt==='diagram',isHT=outFmt==='diagram_html';
+      var isW=outFmt==='word',isDG=outFmt==='diagram',isHT=outFmt==='diagram_html',isDA=outFmt==='data_excel';
       resultName=Object.keys(fileMap)[0].replace(/\.fhx$/i,'')+
-        (isW?'_DDS.docx':isDG?'_SFC_Diagram.xlsx':isHT?'_SFC.html':'_Logic.xlsx');
+        (isW?'_DDS.docx':isDG?'_SFC_Diagram.xlsx':isHT?'_SFC.html':isDA?'_Data.xlsx':'_Logic.xlsx');
       setProg(100);setBadge('done');
       lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
       lg('Done · elapsed '+ts(),'ok');

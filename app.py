@@ -1189,8 +1189,153 @@ def build_phase_diagram_excel(blocks, fname, opts):
     buf = io.BytesIO(); wb.save(buf); buf.seek(0)
     return buf
 
-# ═══════════════════════════════════════════════════════════════════════════════
-# DDS WORD BUILDER
+
+def _add_table(ws, first_row, last_row, n_cols, name):
+    """Apply an Excel Table (autofilter + banded style) over a header+data range."""
+    from openpyxl.worksheet.table import Table, TableStyleInfo
+    from openpyxl.utils import get_column_letter
+    if last_row <= first_row:
+        return
+    ref = f"A{first_row}:{get_column_letter(n_cols)}{last_row}"
+    safe = re.sub(r'[^A-Za-z0-9_]', '_', name)[:28]
+    try:
+        tbl = Table(displayName=safe, ref=ref)
+        tbl.tableStyleInfo = TableStyleInfo(
+            name="TableStyleMedium2", showRowStripes=True, showColumnStripes=False,
+            showFirstColumn=False, showLastColumn=False)
+        ws.add_table(tbl)
+    except Exception:
+        pass
+
+
+def build_phase_data_excel(blocks, fname, opts):
+    """Professional data-focused workbook: Summary, Parameters, Monitors, Actions,
+    plus one SFC diagram image sheet per logic block. Tabular sheets use Excel
+    Tables (autofilter), freeze panes, and consistent styling."""
+    from openpyxl.utils import get_column_letter
+    wb = openpyxl.Workbook()
+    params   = blocks.get('__parameters__', [])
+    monitors = blocks.get('__monitors__', [])
+    used = set()
+    block_list = []
+    for fb, data in real_blocks(blocks):
+        lbl = derive_phase_label(fb, data.get('instance_name',''),
+                                 data.get('description',''), used)
+        block_list.append((fb, lbl, data))
+
+    def hdr(ws, row, headers, widths):
+        for ci, (h, w) in enumerate(zip(headers, widths), 1):
+            sc(ws, row, ci, h, bold=True, fc='FFFFFF', fill=BLUE_H, h='left')
+            ws.column_dimensions[get_column_letter(ci)].width = w
+        ws.row_dimensions[row].height = 18
+
+    def title(ws, span, text):
+        _safe_merge_and_write(ws, 1, 1, 1, span,
+            value=f"  {text}", font=wf(True, 13, 'FFFFFF'), fill=NAVY,
+            alignment=Alignment(horizontal='left', vertical='center'), border=BORD)
+        ws.row_dimensions[1].height = 26
+
+    # ── SUMMARY ──────────────────────────────────────────────────────────────
+    ws = wb.active; ws.title = 'SUMMARY'
+    ws.sheet_view.showGridLines = False
+    title(ws, 5, f"{fname} — Phase Logic Data")
+    hdr(ws, 2, ['Logic Block', 'FB Name', 'Description', 'Steps', 'Actions'],
+        [24, 28, 50, 8, 9])
+    ws.freeze_panes = 'A3'
+    r = 3
+    for fb, lbl, data in block_list:
+        nact = sum(len(s[1].get('actions', [])) for s in data.get('ordered_steps', []))
+        sc(ws, r, 1, lbl); sc(ws, r, 2, fb)
+        sc(ws, r, 3, (data.get('description','') or '').strip())
+        sc(ws, r, 4, len(data.get('ordered_steps', [])), h='center')
+        sc(ws, r, 5, nact, h='center')
+        r += 1
+    last_summary = r - 1
+    sc(ws, r+1, 1, 'Parameters', bold=True); sc(ws, r+1, 2, len(params))
+    sc(ws, r+2, 1, 'Monitor conditions', bold=True); sc(ws, r+2, 2, len(monitors))
+    _add_table(ws, 2, last_summary, 5, 'tblSummary')
+
+    # ── PARAMETERS ───────────────────────────────────────────────────────────
+    ws = wb.create_sheet('PARAMETERS')
+    ws.sheet_view.showGridLines = False
+    title(ws, 4, f"{fname} — Phase Parameters")
+    hdr(ws, 2, ['Parameter', 'ID', 'Group', 'Description'], [30, 8, 18, 55])
+    ws.freeze_panes = 'A3'
+    r = 3
+    for p in params:
+        sc(ws, r, 1, p['name']); sc(ws, r, 2, p['id'], h='center')
+        sc(ws, r, 3, p['group']); sc(ws, r, 4, p['desc'])
+        r += 1
+    _add_table(ws, 2, r-1, 4, 'tblParameters')
+
+    # ── MONITORS ─────────────────────────────────────────────────────────────
+    ws = wb.create_sheet('MONITORS')
+    ws.sheet_view.showGridLines = False
+    title(ws, 3, f"{fname} — Monitor Conditions (Hold / Sentinel / Failure)")
+    hdr(ws, 2, ['Type', 'Name', 'Condition'], [12, 22, 110])
+    ws.freeze_panes = 'A3'
+    kind_fill = {'Hold': ORANGE_H,
+                 'Sentinel': PatternFill('solid', start_color='4A3D6B'),
+                 'Failure': PatternFill('solid', start_color='6B3D3D')}
+    r = 3
+    for k in ('Hold', 'Sentinel', 'Failure'):
+        for m in [x for x in monitors if x['kind'] == k]:
+            sc(ws, r, 1, k, fc='FFFFFF', fill=kind_fill.get(k), h='center')
+            sc(ws, r, 2, m['name'])
+            sc(ws, r, 3, m['condition'], wrap=True)
+            r += 1
+    _add_table(ws, 2, r-1, 3, 'tblMonitors')
+
+    # ── ACTIONS ──────────────────────────────────────────────────────────────
+    ws = wb.create_sheet('ACTIONS')
+    ws.sheet_view.showGridLines = False
+    title(ws, 8, f"{fname} — Step Actions")
+    hdr(ws, 2, ['Block', 'Step', 'Action', 'Qual', 'Description', 'Expression',
+                'Delay', 'Confirm'], [20, 18, 10, 7, 30, 60, 9, 30])
+    ws.freeze_panes = 'A3'
+    r = 3
+    for fb, lbl, data in block_list:
+        for sn, sd in data.get('ordered_steps', []):
+            for a in sd.get('actions', []):
+                sc(ws, r, 1, lbl); sc(ws, r, 2, sn)
+                sc(ws, r, 3, a.get('action','') or a.get('action_id',''))
+                sc(ws, r, 4, a.get('qualifier',''), h='center')
+                sc(ws, r, 5, a.get('description',''))
+                sc(ws, r, 6, (a.get('expression','') or '').replace('\r',' ').replace('\n',' '), wrap=True)
+                sc(ws, r, 7, a.get('delay_time',''), h='center')
+                sc(ws, r, 8, (a.get('confirm_expression','') or '').replace('\r',' ').replace('\n',' '))
+                r += 1
+    _add_table(ws, 2, r-1, 8, 'tblActions')
+
+    # ── DIAGRAM IMAGE SHEETS (one per block) ────────────────────────────────
+    if opts.get('include_diagrams', True):
+        for fb, lbl, data in block_list:
+            if not data.get('ordered_steps'):
+                continue
+            try:
+                import sfc_image
+                from openpyxl.drawing.image import Image as XLImage
+                out = sfc_image.render_sfc_png(lbl, data, show_detail=False)
+                ibuf, w_px, h_px = out[0], out[1], out[2]
+                if ibuf is None:
+                    continue
+                dn = (lbl[:28] + '_D')[:31]
+                dws = wb.create_sheet(dn)
+                dws.sheet_view.showGridLines = False
+                dws['A1'] = f"SFC: {lbl}"
+                dws['A1'].font = wf(True, 12)
+                img = XLImage(ibuf)
+                if w_px > 1100:
+                    ratio = 1100 / w_px
+                    img.width = int(w_px*ratio); img.height = int(h_px*ratio)
+                dws.add_image(img, 'A3')
+            except Exception:
+                pass
+
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    return buf
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 
 from docx import Document
@@ -1661,6 +1806,8 @@ def parse_and_build(text, fhx_type, fname, opts, output_format='excel'):
             return build_dds_word(data, fhx_type, fname, opts), None
         if output_format == 'diagram':
             return build_phase_diagram_excel(data, fname, opts), None
+        if output_format == 'data_excel':
+            return build_phase_data_excel(data, fname, opts), None
         if output_format == 'diagram_html':
             import sfc_html, io as _io
             doc = sfc_html.build_sfc_html(data, fname, opts)
@@ -1864,6 +2011,13 @@ def convert():
         resp = send_file(buf, as_attachment=True,
                          download_name=fname + '_DDS.docx',
                          mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        resp.headers['X-Detected-Type'] = fhx_type
+        return resp
+
+    if fmt == 'data_excel':
+        resp = send_file(buf, as_attachment=True,
+                         download_name=fname + '_Data.xlsx',
+                         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         resp.headers['X-Detected-Type'] = fhx_type
         return resp
 

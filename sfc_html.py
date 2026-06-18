@@ -289,23 +289,25 @@ svg.sfc{min-width:100%;transform-origin:0 0}
 #tip .ln{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px}
 .tab.special{margin-left:4px;background:#fff7ed;border-color:#fdba74}
 .tab.special.on{background:#ea580c;border-color:#ea580c;color:#fff}
-.special{padding:16px 20px;overflow:auto}
+.special{padding:16px 20px;overflow:hidden;display:flex;flex-direction:column}
 .special.hidden{display:none}
-.special h2{font-size:15px;margin:0 0 10px}
-.special input{width:300px;max-width:70%;padding:7px 10px;border:1px solid var(--bd);border-radius:6px;font-size:13px;margin-bottom:10px}
+.special h2{font-size:15px;margin:0 0 10px;flex:0 0 auto}
+.special input{width:300px;max-width:70%;padding:7px 10px;border:1px solid var(--bd);border-radius:6px;font-size:13px;margin-bottom:10px;flex:0 0 auto}
+.special .sscroll{flex:1 1 auto;overflow:auto;border:1px solid var(--bd);border-radius:6px}
 .special table{border-collapse:collapse;width:100%;font-size:12px}
 .special th,.special td{border:1px solid var(--bd);padding:5px 8px;text-align:left;vertical-align:top}
-.special th{background:#eff6ff;position:sticky;top:0}
+.special th{background:#eff6ff;position:sticky;top:0;z-index:2;box-shadow:0 1px 0 var(--bd)}
 .special tr.grp td{background:#f1f5f9;font-weight:600}
 .special td.expr{font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
 .kind{display:inline-block;font-size:10px;color:#fff;border-radius:4px;padding:1px 6px}
 .kind.hold{background:#b45309}.kind.sentinel{background:#7c3aed}.kind.failure{background:#b91c1c}
 .special-mode .vsplit,.special-mode .panel{display:none}
-.tablewrap{padding:10px 20px 14px;background:#fff;border-top:1px solid var(--bd);flex:0 0 280px;overflow:auto;min-height:90px}
-.tablewrap input{width:280px;max-width:60%;padding:7px 10px;border:1px solid var(--bd);border-radius:6px;font-size:13px;margin-bottom:10px}
+.tablewrap{padding:10px 20px 14px;background:#fff;border-top:1px solid var(--bd);flex:0 0 280px;overflow:hidden;min-height:90px;display:flex;flex-direction:column}
+.tablewrap input{width:280px;max-width:60%;padding:7px 10px;border:1px solid var(--bd);border-radius:6px;font-size:13px;margin-bottom:10px;flex:0 0 auto}
+.tablescroll{flex:1 1 auto;overflow:auto;border:1px solid var(--bd);border-radius:6px}
 table{border-collapse:collapse;width:100%;font-size:12px}
 th,td{border:1px solid var(--bd);padding:5px 8px;text-align:left;vertical-align:top}
-th{background:#eff6ff;position:sticky;top:0;cursor:pointer}
+th{background:#eff6ff;position:sticky;top:0;cursor:pointer;z-index:2;box-shadow:0 1px 0 var(--bd)}
 td.expr{font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
 tr.step-row td{background:#f1f5f9;font-weight:600}
 .hidden{display:none}
@@ -330,25 +332,25 @@ function showSpecial(which){
     EXTRA.params.forEach(p=>{(byGroup[p.group||'(ungrouped)']=byGroup[p.group||'(ungrouped)']||[]).push(p);});
     let h='<h2>Phase Parameters ('+EXTRA.params.length+')</h2>';
     h+='<input id="pq" placeholder="Filter parameters…" oninput="filterSpecial(\\'param\\')">';
-    h+='<table id="ptable"><thead><tr><th>Name</th><th>ID</th><th>Group</th><th>Description</th></tr></thead><tbody>';
+    h+='<div class="sscroll"><table id="ptable"><thead><tr><th>Name</th><th>ID</th><th>Group</th><th>Description</th></tr></thead><tbody>';
     Object.keys(byGroup).sort().forEach(g=>{
       h+='<tr class="grp"><td colspan="4">'+esc(g)+'</td></tr>';
       byGroup[g].forEach(p=>{h+='<tr class="prow"><td>'+esc(p.name)+'</td><td>'+esc(p.id)+'</td><td>'+esc(p.group)+'</td><td>'+esc(p.desc)+'</td></tr>';});
     });
-    h+='</tbody></table>';
+    h+='</tbody></table></div>';
     sp.innerHTML=h;
   } else if(which==='__monitors__'){
     const byKind={Hold:[],Sentinel:[],Failure:[]};
     EXTRA.monitors.forEach(m=>{(byKind[m.kind]=byKind[m.kind]||[]).push(m);});
     let h='<h2>Monitor Conditions ('+EXTRA.monitors.length+')</h2>';
     h+='<input id="mq" placeholder="Filter conditions…" oninput="filterSpecial(\\'mon\\')">';
-    h+='<table id="mtable"><thead><tr><th>Type</th><th>Name</th><th>Condition</th></tr></thead><tbody>';
+    h+='<div class="sscroll"><table id="mtable"><thead><tr><th>Type</th><th>Name</th><th>Condition</th></tr></thead><tbody>';
     ['Hold','Sentinel','Failure'].forEach(k=>{
       const items=byKind[k]||[]; if(!items.length)return;
       h+='<tr class="grp"><td colspan="3">'+k+' Monitor ('+items.length+')</td></tr>';
       items.forEach(m=>{h+='<tr class="mrow"><td><span class="kind '+k.toLowerCase()+'">'+k+'</span></td><td>'+esc(m.name)+'</td><td class="expr">'+esc(m.condition)+'</td></tr>';});
     });
-    h+='</tbody></table>';
+    h+='</tbody></table></div>';
     sp.innerHTML=h;
   }
 }
@@ -564,7 +566,7 @@ def build_sfc_html(blocks, fname, opts=None):
 <div id="tip"></div>
 <div class="tablewrap" id="tablewrap">
   <input id="search" type="text" placeholder="Search actions, expressions, steps…" oninput="filterTable()">
-  <div style="overflow:auto;border:1px solid var(--bd);border-radius:6px">
+  <div class="tablescroll">
   <table><thead><tr><th>Step</th><th>Action</th><th>Description</th><th>Qual</th><th>Expression</th><th>Delay / Confirm</th></tr></thead>
   <tbody id="tbody"></tbody></table>
   </div>
