@@ -93,9 +93,7 @@ header{
 .wizard{
   max-width:680px;margin:0 auto;
   display:flex;flex-direction:column;
-  width:100%;
 }
-.wstep{width:100%;min-width:0}
 
 /* Step connector */
 .step-connector{
@@ -156,8 +154,6 @@ header{
 
 /* ── STEP 1 — FILE ── */
 .drop-zone{
-  display:block;
-  box-sizing:border-box;width:100%;max-width:100%;
   border:2px dashed var(--bd2);border-radius:var(--r10);
   padding:36px 24px;text-align:center;cursor:pointer;
   transition:all .18s;background:var(--s1);position:relative;
@@ -175,7 +171,6 @@ header{
 .dz-sub{font-size:12px;color:var(--muted)}
 
 .file-card{
-  box-sizing:border-box;width:100%;max-width:100%;
   display:none;align-items:center;gap:12px;
   padding:12px 16px;border-radius:var(--r8);
   border:1px solid var(--sage100);background:var(--sage50);
@@ -208,6 +203,7 @@ header{
 .det-pill.active-teal{border-color:var(--teal);background:var(--teal50);color:var(--teal)}
 .det-pill.active-rust{border-color:var(--rust);background:var(--rust50);color:var(--rust)}
 .det-pill.active-indigo{border-color:var(--indigo);background:var(--indigo50);color:var(--indigo)}
+.det-pill.active-amber{border-color:var(--amber);background:var(--amber50);color:var(--amber)}
 
 /* Stats strip */
 .stats-strip{
@@ -361,6 +357,7 @@ header{
 .pill-p{border-color:var(--teal100);background:var(--teal50);color:var(--teal)}.pill-p .pd{background:var(--teal)}
 .pill-c{border-color:var(--rust100);background:var(--rust50);color:var(--rust)}.pill-c .pd{background:var(--rust)}
 .pill-s{border-color:var(--indigo100);background:var(--indigo50);color:var(--indigo)}.pill-s .pd{background:var(--indigo)}
+.pill-r{border-color:var(--amber100);background:var(--amber50);color:var(--amber)}.pill-r .pd{background:var(--amber)}
 .pill-z .pd{background:var(--dim)}
 .dl-btn{
   display:inline-flex;align-items:center;gap:6px;
@@ -442,7 +439,7 @@ header{
       </label>
 
       <div class="file-card" id="fileCard">
-        <div class="fc-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <div class="fc-icon">📄</div>
         <div style="flex:1;min-width:0">
           <div class="fc-name" id="fcName">—</div>
           <div class="fc-meta" id="fcMeta">—</div>
@@ -456,6 +453,7 @@ header{
           <span class="det-pill" id="dpPhase" onclick="setType('phase')">Phase</span>
           <span class="det-pill" id="dpCD"    onclick="setType('em_cd')">Command EM</span>
           <span class="det-pill" id="dpSD"    onclick="setType('em_sd')">State EM</span>
+          <span class="det-pill" id="dpRec"   onclick="setType('recipe')">Recipe</span>
         </div>
       </div>
 
@@ -485,19 +483,24 @@ header{
         <div class="cfg-label">Output format</div>
         <div class="cfg-grid-3">
           <div class="cfg-card on-xl" id="fmtXL" onclick="setFmt('excel')">
-            <div class="cc-top"><div class="cc-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="20" x2="4" y2="10"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="13"/><line x1="2" y1="20" x2="22" y2="20"/></svg></div><div class="cc-name">Excel</div></div>
+            <div class="cc-top"><div class="cc-icon">📊</div><div class="cc-name">Excel</div></div>
             <div class="cc-desc">Styled workbook with step/action/transition sheets</div>
             <div class="cc-ext">.xlsx</div>
           </div>
           <div class="cfg-card" id="fmtWD" onclick="setFmt('word')">
-            <div class="cc-top"><div class="cc-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div><div class="cc-name">Word DDS</div></div>
+            <div class="cc-top"><div class="cc-icon">📄</div><div class="cc-name">Word DDS</div></div>
             <div class="cc-desc">Design description spec with sign-off table</div>
             <div class="cc-ext">.docx</div>
           </div>
           <div class="cfg-card" id="fmtDG" onclick="setFmt('diagram')" title="Phase only">
-            <div class="cc-top"><div class="cc-icon"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></div><div class="cc-name">Diagram</div></div>
+            <div class="cc-top"><div class="cc-icon">🗺️</div><div class="cc-name">Diagram</div></div>
             <div class="cc-desc">Interactive Excel SFC diagram with hyperlinks</div>
             <div class="cc-ext">.xlsx · Phase only</div>
+          </div>
+          <div class="cfg-card" id="fmtHT" onclick="setFmt('diagram_html')" title="Phase only">
+            <div class="cc-top"><div class="cc-icon">🌐</div><div class="cc-name">Interactive HTML</div></div>
+            <div class="cc-desc">Self-contained page: hover, click-to-expand, zoom, searchable table</div>
+            <div class="cc-ext">.html · Phase only</div>
           </div>
         </div>
       </div>
@@ -527,6 +530,18 @@ header{
           <div class="opt-row">
             <div><div class="ol">Summary sheet</div><div class="os">Overview tab with all logic blocks</div></div>
             <button class="tog on" id="togS" onclick="this.classList.toggle('on')"></button>
+          </div>
+          <div class="opt-row hidden" id="rowRecipe">
+            <div><div class="ol">Step parameters sheet</div><div class="os">Per-UP deferred-parameter links</div></div>
+            <button class="tog" id="togSP" onclick="this.classList.toggle('on')"></button>
+          </div>
+          <div class="opt-row hidden" id="rowRecipe2">
+            <div><div class="ol">Show all formula params</div><div class="os">Include params with no per-formula value</div></div>
+            <button class="tog" id="togAP" onclick="this.classList.toggle('on')"></button>
+          </div>
+          <div class="opt-row hidden" id="rowDiagram">
+            <div><div class="ol">Show transition detail</div><div class="os">Add description &amp; condition expression beside each transition</div></div>
+            <button class="tog" id="togDD" onclick="this.classList.toggle('on')"></button>
           </div>
         </div>
       </div>
@@ -570,7 +585,7 @@ header{
 
       <div class="result-card" id="resultCard" style="display:none">
         <div class="rc-head">
-          <div class="rc-icon"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+          <div class="rc-icon">✅</div>
           <div class="rc-title" id="rcTitle">Output ready</div>
         </div>
         <div class="rc-body">
@@ -587,7 +602,7 @@ header{
 
   <!-- SFC Diagram link -->
   <a class="diag-link" href="/diagram" target="_blank">
-    <div class="dl-ic"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg></div>
+    <div class="dl-ic">🗺️</div>
     <div>
       <div class="dl-tt">SFC Diagram Viewer<span class="new-tag">NEW</span></div>
       <div class="dl-ss">Interactive flow diagram — click any step or transition to inspect</div>
@@ -638,28 +653,39 @@ var HINTS = {
   phase: null,
   em_cd: null,
   em_sd: null,
+  recipe: null,
 };
 
 function setType(t){
   fhxType=t;
-  ['dpPhase','dpCD','dpSD'].forEach(function(id){g(id).className='det-pill';});
-  var cls={phase:'active-teal', em_cd:'active-rust', em_sd:'active-indigo'}[t]||'active-teal';
-  var map={phase:'dpPhase', em_cd:'dpCD', em_sd:'dpSD'};
+  ['dpPhase','dpCD','dpSD','dpRec'].forEach(function(id){g(id).className='det-pill';});
+  var cls={phase:'active-teal', em_cd:'active-rust', em_sd:'active-indigo', recipe:'active-amber'}[t]||'active-teal';
+  var map={phase:'dpPhase', em_cd:'dpCD', em_sd:'dpSD', recipe:'dpRec'};
   if(map[t]) g(map[t]).className='det-pill '+cls;
-  g('rowTrans').className='opt-row'+(t==='em_sd'?' hidden':'');
-  g('sAL').textContent=t==='em_sd'?'EM':t==='em_cd'?'Cmds':'Blocks';
-  g('sBL').textContent=t==='em_sd'?'States':'Steps';
-  g('sCL').textContent=t==='em_sd'?'Devices':'Actions';
+  g('rowTrans').className='opt-row'+((t==='em_sd'||t==='recipe')?' hidden':'');
+  // Recipe-specific option rows (shown only for recipe)
+  var recRow=g('rowRecipe'); if(recRow) recRow.className='opt-row'+(t==='recipe'?'':' hidden');
+  var recRow2=g('rowRecipe2'); if(recRow2) recRow2.className='opt-row'+(t==='recipe'?'':' hidden');
+  if(t==='recipe'){
+    g('sAL').textContent='Unit Procs';
+    g('sBL').textContent='Formula Params';
+    g('sCL').textContent='Formulas';
+  } else {
+    g('sAL').textContent=t==='em_sd'?'EM':t==='em_cd'?'Cmds':'Blocks';
+    g('sBL').textContent=t==='em_sd'?'States':'Steps';
+    g('sCL').textContent=t==='em_sd'?'Devices':'Actions';
+  }
 }
 
 // ── FORMAT ──────────────────────────────────────────────────────────────────
 function setFmt(f){
   outFmt=f;
-  ['fmtXL','fmtWD','fmtDG'].forEach(function(id){
-    var el=g(id); el.className='cfg-card';
+  ['fmtXL','fmtWD','fmtDG','fmtHT'].forEach(function(id){
+    var el=g(id); if(el) el.className='cfg-card';
   });
-  var map={excel:['fmtXL','on-xl'], word:['fmtWD','on-wd'], diagram:['fmtDG','on-dg']};
-  if(map[f]) g(map[f][0]).className='cfg-card '+map[f][1];
+  var map={excel:['fmtXL','on-xl'], word:['fmtWD','on-wd'], diagram:['fmtDG','on-dg'], diagram_html:['fmtHT','on-dg']};
+  if(map[f] && g(map[f][0])) g(map[f][0]).className='cfg-card '+map[f][1];
+  var rd=g('rowDiagram'); if(rd) rd.className='opt-row'+((f==='diagram'||f==='diagram_html')?'':' hidden');
 }
 
 // ── COLUMNS ─────────────────────────────────────────────────────────────────
@@ -782,10 +808,10 @@ function run(){
   g('s3badge').textContent='Processing…';
 
   var DL_SVG='<svg viewBox="0 0 12 12" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="1" x2="6" y2="8"/><polyline points="2,5 6,8 10,5"/><line x1="1" y1="11" x2="11" y2="11"/></svg>';
-  var TN={phase:'PHASE',em_cd:'CMD DRIVEN EM',em_sd:'STATE DRIVEN EM'};
+  var TN={phase:'PHASE',em_cd:'CMD DRIVEN EM',em_sd:'STATE DRIVEN EM',recipe:'RECIPE / PROCEDURE'};
 
   lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
-  lg('FHX → '+(outFmt==='word'?'WORD DDS':outFmt==='diagram'?'SFC DIAGRAM':'EXCEL')+' · '+new Date().toLocaleTimeString(),'head');
+  lg('FHX → '+(outFmt==='word'?'WORD DDS':outFmt==='diagram'?'SFC DIAGRAM':outFmt==='diagram_html'?'INTERACTIVE HTML':'EXCEL')+' · '+new Date().toLocaleTimeString(),'head');
   lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
   lg('File: '+item.file.name+' ('+sz(item.file.size)+')','ok');
   lg('Type: '+(TN[fhxType]||fhxType),'dim');
@@ -800,6 +826,9 @@ function run(){
   fd.append('transitions',optOn('togT')?'true':'false');
   fd.append('summary',optOn('togS')?'true':'false');
   fd.append('expressions','true');
+  fd.append('step_params',optOn('togSP')?'true':'false');
+  fd.append('all_params',optOn('togAP')?'true':'false');
+  fd.append('diagram_detail',optOn('togDD')?'true':'false');
 
   fetch('/convert',{method:'POST',body:fd})
     .then(function(resp){
@@ -809,7 +838,7 @@ function run(){
         hdr.split('|').forEach(function(n){
           n=n.trim();
           var cls=n==='SUMMARY'?'pill-z':
-            fhxType==='phase'?'pill-p':fhxType==='em_cd'?'pill-c':'pill-s';
+            fhxType==='phase'?'pill-p':fhxType==='em_cd'?'pill-c':fhxType==='recipe'?'pill-r':'pill-s';
           var p=document.createElement('div');
           p.className='pill '+cls;
           p.innerHTML='<div class="pd"></div>'+n;
@@ -827,9 +856,9 @@ function run(){
     })
     .then(function(blob){
       resultBlob=blob;
-      var isW=outFmt==='word',isDG=outFmt==='diagram';
+      var isW=outFmt==='word',isDG=outFmt==='diagram',isHT=outFmt==='diagram_html';
       resultName=Object.keys(fileMap)[0].replace(/\.fhx$/i,'')+
-        (isW?'_DDS.docx':isDG?'_SFC_Diagram.xlsx':'_Logic.xlsx');
+        (isW?'_DDS.docx':isDG?'_SFC_Diagram.xlsx':isHT?'_SFC.html':'_Logic.xlsx');
       setProg(100);setBadge('done');
       lg('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━','head');
       lg('Done · elapsed '+ts(),'ok');

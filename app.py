@@ -3,6 +3,7 @@ from flask_cors import CORS
 import io, re, os, openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+import recipe_module
 
 app = Flask(__name__)
 CORS(app, expose_headers=['X-Sheet-Names'])
@@ -50,9 +51,11 @@ def parse_sfc(sfc_block):
     for sm in re.finditer(r'STEP\s+NAME="([^"]+)"\s*\{', sfc_block):
         sb = extract_block(sfc_block, sm.end()-1)
         rc = re.search(r'RECTANGLE\s*=\s*\{\s*X=(\d+)\s*Y=(\d+)', sb)
+        sdesc = re.search(r'DESCRIPTION="([^"]*)"', sb)
         steps[sm.group(1)] = {
             'x': int(rc.group(1)) if rc else 0,
             'y': int(rc.group(2)) if rc else 0,
+            'description': sdesc.group(1).strip() if sdesc else '',
             'actions': parse_actions(sb)
         }
     for tm in re.finditer(r'TRANSITION\s+NAME="([^"]+)"\s*\{', sfc_block):
@@ -68,18 +71,44 @@ def parse_sfc(sfc_block):
             'expression':  te.group(1).strip() if te else '',
             'termination': tt.group(1) if tt else 'F',
         }
+    # ── Connections: read EXPLICIT connection blocks from the FHX. ──────────────
+    # DeltaV declares the real graph via STEP_TRANSITION_CONNECTION (step→trans)
+    # and TRANSITION_STEP_CONNECTION (trans→step). These are authoritative and
+    # correctly capture divergent/parallel transitions and loop-backs, which a
+    # geometry guess cannot. Geometry is used only as a fallback if a connection
+    # is absent.
     s2t = {s: [] for s in steps}
+    t2s = {}
+    for cm in re.finditer(r'STEP_TRANSITION_CONNECTION\s+STEP="([^"]+)"\s+TRANSITION="([^"]+)"', sfc_block):
+        sn, tn = cm.group(1), cm.group(2)
+        if sn in s2t and tn not in s2t[sn]:
+            s2t[sn].append(tn)
+    for cm in re.finditer(r'TRANSITION_STEP_CONNECTION\s+TRANSITION="([^"]+)"\s+STEP="([^"]+)"', sfc_block):
+        tn, sn = cm.group(1), cm.group(2)
+        t2s.setdefault(tn, [])
+        if sn not in t2s[tn]:
+            t2s[tn].append(sn)
+
+    # Fallback (only for transitions with no explicit incoming connection):
+    # attach by geometry to the nearest step above, as before.
+    explicit_targets = set()
+    for tl in s2t.values():
+        explicit_targets.update(tl)
     for tn, tp in trans.items():
-        cands = [(tp['y']-v['y'], sn) for sn,v in steps.items()
-                 if v['y'] < tp['y'] and abs(v['x']-tp['x']) < 150]
+        if tn in explicit_targets:
+            continue
+        cands = [(tp['y'] - v['y'], sn) for sn, v in steps.items()
+                 if v['y'] < tp['y'] and abs(v['x'] - tp['x']) < 150]
         if not cands:
-            cands = [(tp['y']-v['y'], sn) for sn,v in steps.items() if v['y'] < tp['y']]
+            cands = [(tp['y'] - v['y'], sn) for sn, v in steps.items() if v['y'] < tp['y']]
         if cands:
             s2t[sorted(cands)[0][1]].append(tn)
+
     return {
         'ordered_steps': sorted(steps.items(), key=lambda x: x[1]['y']),
         'transitions':   trans,
         'step_to_trans': s2t,
+        'trans_to_step': t2s,
     }
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -620,7 +649,9 @@ def build_sdem_excel(em_list, fname, opts):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def detect_fhx_type(text):
-    """Return 'phase', 'em_cd', or 'em_sd' by inspecting the FHX structure."""
+    """Return 'recipe', 'phase', 'em_cd', or 'em_sd' by inspecting the FHX structure."""
+    if 'BATCH_RECIPE ' in text:
+        return 'recipe'
     if 'STATE_DRIVEN_ALGORITHM' in text:
         return 'em_sd'
     if 'COMMAND_DRIVEN_ALGORITHM' in text:
@@ -682,6 +713,20 @@ def _safe_merge_and_write(ws, r1, c1, r2, c2, value, font, fill, alignment, bord
     cell.alignment = alignment
     cell.border    = border
     return cell
+
+
+# ── Wire shared helpers + styles into the recipe module ─────────────────────────
+recipe_module.init({
+    'extract_block': extract_block,
+    'sc': sc, 'wf': wf, 'wa': wa,
+    '_safe_merge_and_write': _safe_merge_and_write,
+    'Alignment': Alignment,
+    'styles': {
+        'NAVY': NAVY, 'BLUE_H': BLUE_H, 'BLUE_S': BLUE_S, 'GREEN_S': GREEN_S,
+        'ORANGE_H': ORANGE_H, 'ALT': ALT, 'ALT_G': ALT_G, 'ALTG2': ALTG2,
+        'WHITE': WHITE, 'DC_F': DC_F, 'BORD': BORD,
+    },
+})
 
 
 def _draw_step_cell(ws, row, col, name, n_actions, detail_sheet, detail_row, is_init):
@@ -947,26 +992,105 @@ def build_detail_sheet_diag(wb, label, data, diag_name, first=False):
 
     return ws, detail_name, step_rows, trans_rows
 
+def build_sfc_image_sheet(wb, label, data, detail_name, show_detail=False):
+    """Diagram sheet: DeltaV-style SFC image, plus a step list beside it where each
+    step is a hyperlink (jump to its actions) and carries a hover note (full
+    action detail). The list sits beside the image so both reliably work."""
+    import sfc_image
+    from openpyxl.drawing.image import Image as XLImage
+    from openpyxl.comments import Comment
+
+    diag_name = (label[:27] + '_D')[:31]
+    ws = wb.create_sheet(title=diag_name)
+    ws.sheet_view.showGridLines = False
+
+    ws['A1'] = f"SFC: {label}"
+    ws['A1'].font = Font(name='Calibri', bold=True, size=12, color='0F172A')
+    ws['A2'] = f'=HYPERLINK("#\'{detail_name}\'!A1","\u2192 Open full step/transition detail")'
+    ws['A2'].font = Font(name='Calibri', size=10, color='2563EB', underline='single')
+
+    out = sfc_image.render_sfc_png(label, data, show_detail=show_detail)
+    buf, w_px, h_px, step_px = out
+    if buf is None:
+        ws['A4'] = '(No SFC steps to diagram)'
+        return ws
+
+    detail_rows = data.get('_detail_rows', {})
+    ws['A4'] = 'Steps \u2014 hover for summary, click for full actions'
+    ws['A4'].font = Font(name='Calibri', bold=True, size=10, color='0F172A')
+
+    steps = data['ordered_steps']
+    r = 5
+    for sn, sd in steps:
+        cell = ws.cell(row=r, column=1)
+        target_row = detail_rows.get(sn)
+        if target_row:
+            cell.value = f'=HYPERLINK("#\'{detail_name}\'!A{target_row}","{sn}")'
+            cell.font = Font(name='Calibri', size=10, color='2563EB', underline='single')
+        else:
+            cell.value = sn
+            cell.font = Font(name='Calibri', size=10)
+        actions = sd.get('actions', [])
+        # SHORT hover summary only (Excel note popups truncate long text). Full
+        # detail is one click away via the hyperlink to the detail sheet.
+        if actions:
+            ids = ", ".join(
+                f"{a.get('action') or a.get('action_id') or a.get('name') or '?'}"
+                f"[{a.get('qualifier','')}]"
+                for a in actions[:12]
+            )
+            more = "" if len(actions) <= 12 else f" +{len(actions)-12} more"
+            summary = (f"STEP {sn} — {len(actions)} action(s)\n"
+                       f"{ids}{more}\n\n(click to open full detail)")
+        else:
+            summary = f"STEP {sn} — no actions\n\n(click to open full detail)"
+        cm = Comment(summary, "FHX")
+        cm.width = 260
+        cm.height = 110
+        cell.comment = cm
+        bcell = ws.cell(row=r, column=2)
+        bcell.value = f"{len(actions)} act"
+        bcell.font = Font(name='Calibri', size=9, color='64748B')
+        r += 1
+
+    ws.column_dimensions['A'].width = 20
+    ws.column_dimensions['B'].width = 8
+
+    max_w = 1100
+    if w_px > max_w:
+        ratio = max_w / w_px
+        w_px = int(w_px * ratio); h_px = int(h_px * ratio)
+    img = XLImage(buf)
+    img.width = w_px; img.height = h_px
+    ws.add_image(img, 'D4')
+    return ws
+
+
 def build_phase_diagram_excel(blocks, fname, opts):
-    """Build an Excel workbook with SFC diagram + detail sheets per block."""
+    """Build an Excel workbook with DeltaV-style SFC image + detail sheets per block."""
     wb   = openpyxl.Workbook()
     used = set()
     first = True
+    show_detail = opts.get('diagram_detail', False)
 
     for fb_name, data in blocks.items():
         lbl = derive_phase_label(fb_name, data.get('instance_name',''),
                                  data.get('description',''), used)
         diag_name = (lbl[:27] + '_D')[:31]
 
-        # Detail sheet first (so we have row numbers for hyperlinks)
+        # Detail sheet first (clickable navigation, hyperlink targets)
         _, detail_name, step_rows, trans_rows = build_detail_sheet_diag(
             wb, lbl, data, diag_name, first)
         first = False
         data['_detail_rows']       = step_rows
         data['_trans_detail_rows'] = trans_rows
 
-        # Diagram sheet
-        build_sfc_diagram_sheet(wb, lbl, data, detail_name)
+        # DeltaV-style image diagram sheet
+        try:
+            build_sfc_image_sheet(wb, lbl, data, detail_name, show_detail=show_detail)
+        except Exception as e:
+            # Fall back to the legacy cell-based diagram if image rendering fails
+            build_sfc_diagram_sheet(wb, lbl, data, detail_name)
 
     buf = io.BytesIO(); wb.save(buf); buf.seek(0)
     return buf
@@ -1441,6 +1565,11 @@ def parse_and_build(text, fhx_type, fname, opts, output_format='excel'):
             return build_dds_word(data, fhx_type, fname, opts), None
         if output_format == 'diagram':
             return build_phase_diagram_excel(data, fname, opts), None
+        if output_format == 'diagram_html':
+            import sfc_html, io as _io
+            doc = sfc_html.build_sfc_html(data, fname, opts)
+            buf = _io.BytesIO(doc.encode('utf-8')); buf.seek(0)
+            return buf, None
         buf = build_phase_excel(data, fname, opts)
 
     elif fhx_type == 'em_cd':
@@ -1458,6 +1587,12 @@ def parse_and_build(text, fhx_type, fname, opts, output_format='excel'):
         if output_format == 'word':
             return build_dds_word(data, fhx_type, fname, opts), None
         buf = build_sdem_excel(data, fname, opts)
+
+    elif fhx_type == 'recipe':
+        data = recipe_module.parse_recipe_fhx(text)
+        if not data:
+            raise ValueError('No BATCH_RECIPE found. Is this a Recipe/Procedure FHX?')
+        buf = recipe_module.build_recipe_excel(data, fname, opts)
 
     else:
         raise ValueError(f'Unknown type: {fhx_type}')
@@ -1489,6 +1624,19 @@ def detect():
         text = decode_fhx(raw)
 
         detected = detect_fhx_type(text)
+
+        if detected == 'recipe':
+            # Recipe-relevant counts
+            up_count   = text.count('STEP NAME="UP_')
+            fp_count   = text.count('FORMULA_PARAMETER NAME=')
+            fo_count   = text.count('BATCH_RECIPE_FORMULA NAME=')
+            return jsonify({
+                'type':     'recipe',
+                'fb_count': up_count,    # Unit Procedures
+                'steps':    fp_count,    # Formula Parameters
+                'actions':  fo_count,    # Formulas
+                'commands': [],
+            })
 
         # Fast stats using simple string counting (no regex backtracking)
         fb_count   = text.count('FUNCTION_BLOCK_DEFINITION NAME=')
@@ -1592,6 +1740,14 @@ def convert():
         'expressions': request.form.get('expressions', 'true') == 'true',
         'columns':     cols or ['step','description','action','qualifier',
                                 'expression','delay','confirm_expression'],
+        # recipe-specific toggles
+        'procedure':   request.form.get('procedure',   'true') == 'true',
+        'parameters':  request.form.get('parameters',  'true') == 'true',
+        'formulas':    request.form.get('formulas',    'true') == 'true',
+        'step_params': request.form.get('step_params', 'false') == 'true',
+        'all_params':  request.form.get('all_params',  'false') == 'true',
+        'show_limits': request.form.get('show_limits', 'true') == 'true',
+        'diagram_detail': request.form.get('diagram_detail', 'false') == 'true',
     }
 
     raw   = f.read()
@@ -1612,6 +1768,13 @@ def convert():
         resp = send_file(buf, as_attachment=True,
                          download_name=fname + '_DDS.docx',
                          mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+        resp.headers['X-Detected-Type'] = fhx_type
+        return resp
+
+    if fmt == 'diagram_html':
+        resp = send_file(buf, as_attachment=True,
+                         download_name=fname + '_SFC.html',
+                         mimetype='text/html')
         resp.headers['X-Detected-Type'] = fhx_type
         return resp
 
