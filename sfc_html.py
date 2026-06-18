@@ -287,6 +287,20 @@ svg.sfc{min-width:100%;transform-origin:0 0}
 #tip{position:fixed;pointer-events:none;z-index:20;max-width:360px;background:#0f172a;color:#fff;border-radius:6px;padding:8px 10px;font-size:12px;display:none;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 #tip .tt{font-weight:600;margin-bottom:3px}
 #tip .ln{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px}
+.tab.special{margin-left:4px;background:#fff7ed;border-color:#fdba74}
+.tab.special.on{background:#ea580c;border-color:#ea580c;color:#fff}
+.special{padding:16px 20px;overflow:auto}
+.special.hidden{display:none}
+.special h2{font-size:15px;margin:0 0 10px}
+.special input{width:300px;max-width:70%;padding:7px 10px;border:1px solid var(--bd);border-radius:6px;font-size:13px;margin-bottom:10px}
+.special table{border-collapse:collapse;width:100%;font-size:12px}
+.special th,.special td{border:1px solid var(--bd);padding:5px 8px;text-align:left;vertical-align:top}
+.special th{background:#eff6ff;position:sticky;top:0}
+.special tr.grp td{background:#f1f5f9;font-weight:600}
+.special td.expr{font-family:ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
+.kind{display:inline-block;font-size:10px;color:#fff;border-radius:4px;padding:1px 6px}
+.kind.hold{background:#b45309}.kind.sentinel{background:#7c3aed}.kind.failure{background:#b91c1c}
+.special-mode .vsplit,.special-mode .panel{display:none}
 .tablewrap{padding:10px 20px 14px;background:#fff;border-top:1px solid var(--bd);flex:0 0 280px;overflow:auto;min-height:90px}
 .tablewrap input{width:280px;max-width:60%;padding:7px 10px;border:1px solid var(--bd);border-radius:6px;font-size:13px;margin-bottom:10px}
 table{border-collapse:collapse;width:100%;font-size:12px}
@@ -299,13 +313,58 @@ tr.step-row td{background:#f1f5f9;font-weight:600}
 
 _JS = """
 const DATA = __DATA__;
+const EXTRA = __EXTRA__;
 let curBlock = Object.keys(DATA)[0];
 let zoom = 1;
 
 function esc(s){return (s||'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
 
+function showSpecial(which){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.k===which));
+  document.querySelectorAll('.block').forEach(b=>b.classList.add('hidden'));
+  const dia=document.querySelector('.diagram'), panel=document.getElementById('panel'), sp=document.getElementById('special');
+  sp.classList.remove('hidden');
+  document.querySelector('.wrap').classList.add('special-mode');
+  if(which==='__params__'){
+    const byGroup={};
+    EXTRA.params.forEach(p=>{(byGroup[p.group||'(ungrouped)']=byGroup[p.group||'(ungrouped)']||[]).push(p);});
+    let h='<h2>Phase Parameters ('+EXTRA.params.length+')</h2>';
+    h+='<input id="pq" placeholder="Filter parameters…" oninput="filterSpecial(\\'param\\')">';
+    h+='<table id="ptable"><thead><tr><th>Name</th><th>ID</th><th>Group</th><th>Description</th></tr></thead><tbody>';
+    Object.keys(byGroup).sort().forEach(g=>{
+      h+='<tr class="grp"><td colspan="4">'+esc(g)+'</td></tr>';
+      byGroup[g].forEach(p=>{h+='<tr class="prow"><td>'+esc(p.name)+'</td><td>'+esc(p.id)+'</td><td>'+esc(p.group)+'</td><td>'+esc(p.desc)+'</td></tr>';});
+    });
+    h+='</tbody></table>';
+    sp.innerHTML=h;
+  } else if(which==='__monitors__'){
+    const byKind={Hold:[],Sentinel:[],Failure:[]};
+    EXTRA.monitors.forEach(m=>{(byKind[m.kind]=byKind[m.kind]||[]).push(m);});
+    let h='<h2>Monitor Conditions ('+EXTRA.monitors.length+')</h2>';
+    h+='<input id="mq" placeholder="Filter conditions…" oninput="filterSpecial(\\'mon\\')">';
+    h+='<table id="mtable"><thead><tr><th>Type</th><th>Name</th><th>Condition</th></tr></thead><tbody>';
+    ['Hold','Sentinel','Failure'].forEach(k=>{
+      const items=byKind[k]||[]; if(!items.length)return;
+      h+='<tr class="grp"><td colspan="3">'+k+' Monitor ('+items.length+')</td></tr>';
+      items.forEach(m=>{h+='<tr class="mrow"><td><span class="kind '+k.toLowerCase()+'">'+k+'</span></td><td>'+esc(m.name)+'</td><td class="expr">'+esc(m.condition)+'</td></tr>';});
+    });
+    h+='</tbody></table>';
+    sp.innerHTML=h;
+  }
+}
+
+function filterSpecial(kind){
+  const q=(document.getElementById(kind==='param'?'pq':'mq').value||'').toLowerCase();
+  const sel=kind==='param'?'#ptable tr.prow':'#mtable tr.mrow';
+  document.querySelectorAll(sel).forEach(tr=>{
+    tr.classList.toggle('hidden', q && !tr.textContent.toLowerCase().includes(q));
+  });
+}
+
 function showBlock(key){
   curBlock = key;
+  const sp=document.getElementById('special'); if(sp){sp.classList.add('hidden');}
+  document.querySelector('.wrap').classList.remove('special-mode');
   document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('on',t.dataset.k===key));
   document.querySelectorAll('.block').forEach(b=>b.classList.toggle('hidden',b.dataset.k!==key));
   clearPanel();
@@ -439,18 +498,26 @@ window.addEventListener('DOMContentLoaded',()=>{
 def build_sfc_html(blocks, fname, opts=None):
     """Return a single self-contained HTML string for all blocks in the phase."""
     opts = opts or {}
+    params  = blocks.get('__parameters__', [])
+    monitors = blocks.get('__monitors__', [])
+
     block_layouts = {}
+    friendly = {}     # key -> display name
     for name, data in blocks.items():
+        if name in ('__parameters__', '__monitors__'):
+            continue
         L = _layout(data)
         if L:
             block_layouts[name] = L
+            iname = data.get('instance_name', '') or name
+            friendly[name] = iname
     if not block_layouts:
         return "<html><body><p>No SFC logic found.</p></body></html>"
 
     # tabs + block sections
     tabs, sections, data_json = [], [], {}
     for i, (name, L) in enumerate(block_layouts.items()):
-        label = name
+        label = friendly.get(name, name)
         tabs.append(f'<button class="tab{" on" if i==0 else ""}" '
                     f'data-k="{html.escape(name, quote=True)}" '
                     f'onclick="showBlock(\'{html.escape(name)}\')">{html.escape(label)}</button>')
@@ -461,7 +528,14 @@ def build_sfc_html(blocks, fname, opts=None):
         )
         data_json[name] = _block_data_json(L)
 
-    js = _JS.replace('__DATA__', json.dumps(data_json))
+    # special tabs: Parameters, Monitors
+    tabs.append('<button class="tab special" data-k="__params__" '
+                'onclick="showSpecial(\'__params__\')">⚙ Parameters</button>')
+    tabs.append('<button class="tab special" data-k="__monitors__" '
+                'onclick="showSpecial(\'__monitors__\')">⚠ Monitors</button>')
+
+    extra = {'params': params, 'monitors': monitors}
+    js = _JS.replace('__DATA__', json.dumps(data_json)).replace('__EXTRA__', json.dumps(extra))
 
     htmldoc = f"""<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
@@ -481,6 +555,7 @@ def build_sfc_html(blocks, fname, opts=None):
       <button onclick="zoomReset()" title="Reset">⤢</button>
     </div>
     {''.join(sections)}
+    <div id="special" class="special hidden"></div>
   </div>
   <div class="vsplit" id="vsplit" title="Drag to resize"></div>
   <div class="panel" id="panel"></div>

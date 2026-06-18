@@ -284,6 +284,97 @@ def derive_phase_label(fb_name, instance_name, description, used_labels):
     used_labels.add(label)
     return label
 
+_SPECIAL_KEYS = ('__parameters__', '__monitors__')
+
+def real_blocks(blocks):
+    """Yield (name, data) for real logic blocks, skipping special metadata keys."""
+    for k, v in blocks.items():
+        if k not in _SPECIAL_KEYS:
+            yield k, v
+
+
+def parse_phase_parameters(text):
+    """Extract phase PARAMETER definitions: name, id, group, description."""
+    params = []
+    for m in re.finditer(r'PARAMETER\s+NAME="([^"]+)"[^\{]*\{', text):
+        blk = extract_block(text, m.end()-1)
+        pid = re.search(r'ID=(\d+)', blk)
+        grp = re.search(r'GROUP="([^"]*)"', blk)
+        dsc = re.search(r'DESCRIPTION="([^"]*)"', blk)
+        params.append({
+            'name':  m.group(1),
+            'id':    pid.group(1) if pid else '',
+            'group': grp.group(1).strip() if grp else '',
+            'desc':  dsc.group(1).strip() if dsc else '',
+        })
+    # stable order: by group then id
+    params.sort(key=lambda p: (p['group'], int(p['id']) if p['id'].isdigit() else 0))
+    return params
+
+
+def parse_monitor_conditions(text):
+    """Extract real Hold-Monitor / Sentinel-Monitor / Failure condition logic.
+
+    These are boolean EXPRESSION fields (not message/action code) of the form
+    e.g.  ('//#CIRC_PMP_FAIL#/PV_D.CV' = 1 AND '/CIRC_PMP_FAIL.IGN' = FALSE)
+    They reference HM_xx / SM_xx points and device failure flags. We collect the
+    condition expressions and classify them by the section header that precedes
+    them (Hold Monitor / Sentinel Monitor / Failure)."""
+    monitors = []
+    seen = set()
+
+    # A monitor condition references a device failure / IGN / HM_ / SM_ pattern
+    # and is a comparison (=, <, >). We scan all EXPRESSION fields and keep the
+    # ones that look like monitor conditions, tracking the nearest section header.
+    section = 'Failure'
+    for em in re.finditer(r'EXPRESSION="([^"]*)"', text, re.DOTALL):
+        raw = em.group(1)
+        flat = raw.replace('\r', ' ').replace('\n', ' ')
+        up = flat.upper()
+
+        # update current section from header comments
+        if 'SENTINEL MONITOR' in up:
+            section = 'Sentinel'
+        elif 'HOLD MONITOR' in up:
+            section = 'Hold'
+        elif 'FAILURE' in up and 'MONITOR' in up:
+            section = 'Failure'
+
+        # keep only genuine condition expressions:
+        #  - contains a device-fail / IGN / HM_/SM_ reference
+        #  - is a boolean comparison (has '=', '<', or '>')
+        #  - is NOT an assignment (':=') and NOT mostly a comment
+        is_cond = (
+            (('.IGN' in up) or ('PV_D.CV' in up) or re.search(r'\b[HS]M_\d', up)
+             or 'FAIL.CV' in up or '_FAIL#' in up)
+            and (' = ' in flat or '<' in flat or '>' in flat)
+            and ':=' not in flat
+        )
+        if not is_cond:
+            continue
+        # strip leading comment blocks (* ... *)
+        cond = re.sub(r'\(\*.*?\*\)', '', flat).strip()
+        if len(cond) < 6:
+            continue
+        # split long AND-chains into individual device conditions for readability
+        # but keep the whole expression too
+        key = cond[:80]
+        if key in seen:
+            continue
+        seen.add(key)
+
+        # try to name it from a device token like //#CIRC_PMP_FAIL#
+        dev = re.search(r'//#([A-Z0-9_]+)#', cond)
+        name = dev.group(1) if dev else (re.search(r'([HS]M_\d+)', cond).group(1)
+                                          if re.search(r'([HS]M_\d+)', cond) else '')
+        monitors.append({
+            'kind': section,
+            'name': name,
+            'condition': cond[:400],
+        })
+    return monitors
+
+
 def parse_phase_fhx(text):
     instance_map = build_instance_map(text)
     blocks = {}
@@ -299,6 +390,9 @@ def parse_phase_fhx(text):
             'instance_name': instance_map.get(name, ''),
             **sfc_data,
         }
+    # phase-wide extras (parameters + monitor conditions) attached to the dict
+    blocks['__parameters__'] = parse_phase_parameters(text)
+    blocks['__monitors__']   = parse_monitor_conditions(text)
     return blocks
 
 def build_phase_excel(blocks, fname, opts):
@@ -306,7 +400,7 @@ def build_phase_excel(blocks, fname, opts):
     used_labels = set()
     block_labels = {
         fb: derive_phase_label(fb, d.get('instance_name',''), d.get('description',''), used_labels)
-        for fb, d in blocks.items()
+        for fb, d in real_blocks(blocks)
     }
 
     if opts.get('summary', True):
@@ -323,7 +417,7 @@ def build_phase_excel(blocks, fname, opts):
         for ci, w in enumerate([18,30,50,8,10,13,14,18], 1):
             ws.column_dimensions[get_column_letter(ci)].width = w
         ws.freeze_panes = 'A3'
-        for i, (fb, data) in enumerate(blocks.items()):
+        for i, (fb, data) in enumerate(real_blocks(blocks)):
             lbl    = block_labels[fb]
             acts   = sum(len(s[1]['actions']) for s in data['ordered_steps'])
             mapped = sum(len(v) for v in data['step_to_trans'].values())
@@ -341,7 +435,7 @@ def build_phase_excel(blocks, fname, opts):
     else:
         wb.active.title = '_temp'
 
-    for fb, data in blocks.items():
+    for fb, data in real_blocks(blocks):
         lbl = block_labels[fb]
         write_sfc_sheet(wb, lbl, NAVY, BLUE_S, data, opts,
                         f"Phase Logic: {lbl}   |   {data['description']}")
@@ -1073,7 +1167,7 @@ def build_phase_diagram_excel(blocks, fname, opts):
     first = True
     show_detail = opts.get('diagram_detail', False)
 
-    for fb_name, data in blocks.items():
+    for fb_name, data in real_blocks(blocks):
         lbl = derive_phase_label(fb_name, data.get('instance_name',''),
                                  data.get('description',''), used)
         diag_name = (lbl[:27] + '_D')[:31]
@@ -1292,7 +1386,7 @@ def build_dds_word(parsed_data, fhx_type, fname, opts):
                 for run in para.runs:
                     run.font.bold=True; run.font.name='Calibri'
                     run.font.size=Pt(10); run.font.color.rgb=RGBColor.from_string('FFFFFF')
-        for i, (fb, data) in enumerate(blocks.items()):
+        for i, (fb, data) in enumerate(real_blocks(blocks)):
             acts = sum(len(s[1]['actions']) for s in data['ordered_steps'])
             lbl  = derive_phase_label(fb, data.get('instance_name',''),
                                       data.get('description',''), set())
@@ -1471,6 +1565,8 @@ def build_dds_word(parsed_data, fhx_type, fname, opts):
     if fhx_type == 'phase':
         used = set()
         for fb, data in parsed_data.items():
+            if fb in ('__parameters__', '__monitors__'):
+                continue
             lbl = derive_phase_label(fb, data.get('instance_name',''),
                                      data.get('description',''), used)
             write_sfc_section(data, f'4.{list(parsed_data.keys()).index(fb)+1}  {lbl}')
@@ -1684,7 +1780,7 @@ def parse_for_diagram():
         used   = set()
         result = {'filename': fname, 'type': fhx_type, 'blocks': {}}
 
-        for fb_name, data in blocks.items():
+        for fb_name, data in real_blocks(blocks):
             lbl = derive_phase_label(fb_name, data.get('instance_name',''),
                                      data.get('description',''), used)
             if not data['ordered_steps']:
