@@ -251,11 +251,16 @@ header .sub{color:var(--mut);font-size:12px;margin-top:2px}
 .tabs{display:flex;gap:6px;padding:8px 20px;background:#fff;border-bottom:1px solid var(--bd);flex-wrap:wrap}
 .tab{padding:5px 12px;border:1px solid var(--bd);border-radius:6px;background:#fff;cursor:pointer;font-size:12px}
 .tab.on{background:var(--accent);color:#fff;border-color:var(--accent)}
-.wrap{display:flex;gap:0;height:calc(100vh - 150px)}
-.diagram{flex:1;overflow:auto;position:relative;background:#fff;border-right:1px solid var(--bd)}
+.main{display:flex;flex-direction:column;height:calc(100vh - 96px)}
+.wrap{display:flex;gap:0;flex:1 1 auto;min-height:120px;overflow:hidden}
+.diagram{flex:1 1 auto;overflow:auto;position:relative;background:#fff;min-width:160px}
+.vsplit{flex:0 0 6px;cursor:col-resize;background:var(--bd)}
+.vsplit:hover,.vsplit.drag{background:var(--accent)}
+.hsplit{flex:0 0 6px;cursor:row-resize;background:var(--bd)}
+.hsplit:hover,.hsplit.drag{background:var(--accent)}
 .controls{position:absolute;top:10px;right:10px;display:flex;gap:6px;z-index:3}
 .controls button{width:30px;height:30px;border:1px solid var(--bd);background:#fff;border-radius:6px;cursor:pointer;font-size:15px}
-.panel{width:340px;overflow:auto;background:#fff;padding:14px}
+.panel{flex:0 0 340px;overflow:auto;background:#fff;padding:14px;min-width:160px;border-left:1px solid var(--bd)}
 .panel h3{margin:0 0 8px;font-size:14px}
 .panel .empty{color:var(--mut);font-size:13px}
 .act{border:1px solid var(--bd);border-radius:6px;padding:8px 10px;margin-bottom:8px}
@@ -282,7 +287,7 @@ svg.sfc{min-width:100%;transform-origin:0 0}
 #tip{position:fixed;pointer-events:none;z-index:20;max-width:360px;background:#0f172a;color:#fff;border-radius:6px;padding:8px 10px;font-size:12px;display:none;box-shadow:0 4px 14px rgba(0,0,0,.25)}
 #tip .tt{font-weight:600;margin-bottom:3px}
 #tip .ln{white-space:pre-wrap;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px}
-.tablewrap{padding:14px 20px;background:#fff;border-top:1px solid var(--bd)}
+.tablewrap{padding:10px 20px 14px;background:#fff;border-top:1px solid var(--bd);flex:0 0 280px;overflow:auto;min-height:90px}
 .tablewrap input{width:280px;max-width:60%;padding:7px 10px;border:1px solid var(--bd);border-radius:6px;font-size:13px;margin-bottom:10px}
 table{border-collapse:collapse;width:100%;font-size:12px}
 th,td{border:1px solid var(--bd);padding:5px 8px;text-align:left;vertical-align:top}
@@ -395,9 +400,38 @@ function zoomIn(){zoom=Math.min(4,zoom*1.2);applyZoom();}
 function zoomOut(){zoom=Math.max(.3,zoom/1.2);applyZoom();}
 function zoomReset(){zoom=1;applyZoom();}
 
+function initSplitters(){
+  // vertical splitter: resize side panel width
+  const vs=document.getElementById('vsplit'), panel=document.getElementById('panel'), wrap=document.querySelector('.wrap');
+  let vdrag=false;
+  vs.addEventListener('mousedown',e=>{vdrag=true;vs.classList.add('drag');e.preventDefault();document.body.style.userSelect='none';});
+  window.addEventListener('mousemove',e=>{
+    if(!vdrag)return;
+    const r=wrap.getBoundingClientRect();
+    let w=r.right-e.clientX;
+    w=Math.max(160,Math.min(r.width-200,w));
+    panel.style.flex='0 0 '+w+'px';
+  });
+  window.addEventListener('mouseup',()=>{if(vdrag){vdrag=false;vs.classList.remove('drag');document.body.style.userSelect='';}});
+
+  // horizontal splitter: resize bottom table height
+  const hs=document.getElementById('hsplit'), tw=document.getElementById('tablewrap'), main=document.querySelector('.main');
+  let hdrag=false;
+  hs.addEventListener('mousedown',e=>{hdrag=true;hs.classList.add('drag');e.preventDefault();document.body.style.userSelect='none';});
+  window.addEventListener('mousemove',e=>{
+    if(!hdrag)return;
+    const r=main.getBoundingClientRect();
+    let h=r.bottom-e.clientY;
+    h=Math.max(90,Math.min(r.height-160,h));
+    tw.style.flex='0 0 '+h+'px';
+  });
+  window.addEventListener('mouseup',()=>{if(hdrag){hdrag=false;hs.classList.remove('drag');document.body.style.userSelect='';}});
+}
+
 window.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.block').forEach(wireBlock);
   showBlock(curBlock);
+  initSplitters();
 });
 """
 
@@ -438,6 +472,7 @@ def build_sfc_html(blocks, fname, opts=None):
 <header><h1>SFC Diagram — {html.escape(fname)}</h1>
 <div class="sub">Hover a step or transition for detail · click a step for full actions · zoom/pan the diagram · search the table below</div></header>
 <div class="tabs">{''.join(tabs)}</div>
+<div class="main">
 <div class="wrap">
   <div class="diagram">
     <div class="controls">
@@ -447,15 +482,18 @@ def build_sfc_html(blocks, fname, opts=None):
     </div>
     {''.join(sections)}
   </div>
+  <div class="vsplit" id="vsplit" title="Drag to resize"></div>
   <div class="panel" id="panel"></div>
 </div>
+<div class="hsplit" id="hsplit" title="Drag to resize"></div>
 <div id="tip"></div>
-<div class="tablewrap">
+<div class="tablewrap" id="tablewrap">
   <input id="search" type="text" placeholder="Search actions, expressions, steps…" oninput="filterTable()">
-  <div style="max-height:320px;overflow:auto;border:1px solid var(--bd);border-radius:6px">
+  <div style="overflow:auto;border:1px solid var(--bd);border-radius:6px">
   <table><thead><tr><th>Step</th><th>Action</th><th>Description</th><th>Qual</th><th>Expression</th><th>Delay / Confirm</th></tr></thead>
   <tbody id="tbody"></tbody></table>
   </div>
+</div>
 </div>
 <script>{js}</script>
 </body></html>"""
