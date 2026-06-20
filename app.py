@@ -284,7 +284,7 @@ def derive_phase_label(fb_name, instance_name, description, used_labels):
     used_labels.add(label)
     return label
 
-_SPECIAL_KEYS = ('__parameters__', '__monitors__')
+_SPECIAL_KEYS = ('__parameters__', '__monitors__', '__attributes__')
 
 def real_blocks(blocks):
     """Yield (name, data) for real logic blocks, skipping special metadata keys."""
@@ -293,85 +293,188 @@ def real_blocks(blocks):
             yield k, v
 
 
+def parse_phase_attributes(text):
+    """Extract P_* internal phase attributes (working variables: counters, flags,
+    timers, calculated values). These are declared as ATTRIBUTE (not
+    PHASE_PARAMETER) and are the phase's internal state, distinct from the formal
+    parameter interface. Returns name, type, group, description, units, default."""
+    attrs = []
+    seen = set()
+    # value/limit lookup (same VALUE-block source used for parameters)
+    for m in re.finditer(r'ATTRIBUTE\s+NAME="(P_[A-Z0-9_]+)"\s+TYPE=(\w+)[^\{]*\{', text):
+        nm, typ = m.group(1), m.group(2)
+        if nm in seen:
+            continue
+        seen.add(nm)
+        blk = extract_block(text, m.end()-1)
+        grp = re.search(r'GROUP="([^"]*)"', blk)
+        dsc = re.search(r'DESCRIPTION="([^"]*)"', blk)
+        attrs.append({
+            'name':  nm,
+            'class': 'Phase',           # P_ prefix => phase (per naming convention)
+            'type':  typ.replace('_', ' ').title(),
+            'group': grp.group(1).strip() if grp else '',
+            'desc':  dsc.group(1).strip() if dsc else '',
+        })
+    attrs.sort(key=lambda a: (a['group'], a['name']))
+    return attrs
+
+
+def param_class(name):
+    """Classify a parameter by its name prefix (customer naming convention,
+    correct ~99% of the time): R_* = Recipe, P_* = Phase, RPT_*/L_* = Report.
+    Non-conforming names return '(other)' so they're visibly flagged rather than
+    force-fit. This is advisory; the DIRECTION field is the authoritative source."""
+    if name.startswith('RPT_') or name.startswith('L_'):
+        return 'Report'
+    if name.startswith('R_'):
+        return 'Recipe'
+    if name.startswith('P_'):
+        return 'Phase'
+    return '(other)'
+
+
 def parse_phase_parameters(text):
     """Extract phase PARAMETER definitions: name, id, group, description."""
     params = []
-    for m in re.finditer(r'PARAMETER\s+NAME="([^"]+)"[^\{]*\{', text):
+    # Build a lookup of parameter value/limit attributes (default CV, HIGH, LOW,
+    # UNITS) from the ATTRIBUTE_INSTANCE VALUE blocks elsewhere in the text.
+    valmap = {}
+    for am in re.finditer(r'ATTRIBUTE_INSTANCE\s+NAME="([^"/]+)"\s*\{', text):
+        ab = extract_block(text, am.end()-1)
+        vm = re.search(r'VALUE\s*\{([^}]*)\}', ab)
+        if not vm:
+            continue
+        body = vm.group(1)
+        if ('HIGH' not in body) and ('CV=' not in body):
+            continue
+        nm = am.group(1)
+        if nm in valmap:
+            continue
+        hi = re.search(r'HIGH=([-\d.]+)', body)
+        lo = re.search(r'LOW=([-\d.]+)', body)
+        cv = re.search(r'CV=("(?:[^"\\]|\\.)*"|[-\d.]+)', body)
+        un = re.search(r'UNITS="([^"]*)"', body)
+        cvv = cv.group(1).strip('"') if cv else ''
+        valmap[nm] = {
+            'default': cvv,
+            'high': hi.group(1) if hi else '',
+            'low':  lo.group(1) if lo else '',
+            'units': un.group(1) if un else '',
+        }
+
+    # Prefer PHASE_PARAMETER (carries TYPE + DIRECTION); fall back to PARAMETER.
+    seen = set()
+    pat = r'PHASE_PARAMETER\s+NAME="([^"]+)"(?:\s+TYPE=(\w+))?(?:\s+DIRECTION=(\w+))?[^\{]*\{'
+    for m in re.finditer(pat, text):
+        name = m.group(1)
         blk = extract_block(text, m.end()-1)
         pid = re.search(r'ID=(\d+)', blk)
         grp = re.search(r'GROUP="([^"]*)"', blk)
         dsc = re.search(r'DESCRIPTION="([^"]*)"', blk)
+        v = valmap.get(name, {})
+        seen.add(name)
         params.append({
-            'name':  m.group(1),
+            'name':  name,
+            'class': param_class(name),
             'id':    pid.group(1) if pid else '',
             'group': grp.group(1).strip() if grp else '',
             'desc':  dsc.group(1).strip() if dsc else '',
+            'type':  (m.group(2) or '').replace('BATCH_', '').replace('_', ' ').title(),
+            'direction': m.group(3) or '',
+            'default': v.get('default', ''),
+            'high':  v.get('high', ''),
+            'low':   v.get('low', ''),
+            'units': v.get('units', ''),
         })
-    # stable order: by group then id
+    # fall back to any plain PARAMETER not already captured
+    for m in re.finditer(r'PARAMETER\s+NAME="([^"]+)"[^\{]*\{', text):
+        name = m.group(1)
+        if name in seen or 'PHASE_PARAMETER' in text[max(0, m.start()-6):m.start()]:
+            continue
+        blk = extract_block(text, m.end()-1)
+        pid = re.search(r'ID=(\d+)', blk)
+        grp = re.search(r'GROUP="([^"]*)"', blk)
+        dsc = re.search(r'DESCRIPTION="([^"]*)"', blk)
+        v = valmap.get(name, {})
+        seen.add(name)
+        params.append({
+            'name': name, 'class': param_class(name), 'id': pid.group(1) if pid else '',
+            'group': grp.group(1).strip() if grp else '',
+            'desc': dsc.group(1).strip() if dsc else '',
+            'type': '', 'direction': '',
+            'default': v.get('default', ''), 'high': v.get('high', ''),
+            'low': v.get('low', ''), 'units': v.get('units', ''),
+        })
     params.sort(key=lambda p: (p['group'], int(p['id']) if p['id'].isdigit() else 0))
     return params
 
 
 def parse_monitor_conditions(text):
-    """Extract real Hold-Monitor / Sentinel-Monitor / Failure condition logic.
+    """Extract Hold and Sentinel monitor conditions from a failure-monitor
+    composite, using the authoritative DeltaV structure:
 
-    These are boolean EXPRESSION fields (not message/action code) of the form
-    e.g.  ('//#CIRC_PMP_FAIL#/PV_D.CV' = 1 AND '/CIRC_PMP_FAIL.IGN' = FALSE)
-    They reference HM_xx / SM_xx points and device failure flags. We collect the
-    condition expressions and classify them by the section header that precedes
-    them (Hold Monitor / Sentinel Monitor / Failure)."""
+      Hold Monitors:     HM_AT1/T_EXP{n}  -> HM_{n}  (boolean condition expression)
+      Sentinel Monitors: SENTINEL_ENG/SM_CND_{n} (device REF) + SM_DESC_{n} (alias)
+
+    Unconfigured/placeholder (DUMMY) sentinel slots are skipped. Returns a list of
+    {kind, name, condition, desc}."""
     monitors = []
-    seen = set()
 
-    # A monitor condition references a device failure / IGN / HM_ / SM_ pattern
-    # and is a comparison (=, <, >). We scan all EXPRESSION fields and keep the
-    # ones that look like monitor conditions, tracking the nearest section header.
-    section = 'Failure'
-    for em in re.finditer(r'EXPRESSION="([^"]*)"', text, re.DOTALL):
-        raw = em.group(1)
-        flat = raw.replace('\r', ' ').replace('\n', ' ')
-        up = flat.upper()
+    def _block_from(src, start):
+        i = src.index('{', start); depth = 0; s = i
+        while i < len(src):
+            if src[i] == '{': depth += 1
+            elif src[i] == '}':
+                depth -= 1
+                if depth == 0:
+                    return src[s:i+1]
+            i += 1
+        return ''
 
-        # update current section from header comments
-        if 'SENTINEL MONITOR' in up:
-            section = 'Sentinel'
-        elif 'HOLD MONITOR' in up:
-            section = 'Hold'
-        elif 'FAILURE' in up and 'MONITOR' in up:
-            section = 'Failure'
-
-        # keep only genuine condition expressions:
-        #  - contains a device-fail / IGN / HM_/SM_ reference
-        #  - is a boolean comparison (has '=', '<', or '>')
-        #  - is NOT an assignment (':=') and NOT mostly a comment
-        is_cond = (
-            (('.IGN' in up) or ('PV_D.CV' in up) or re.search(r'\b[HS]M_\d', up)
-             or 'FAIL.CV' in up or '_FAIL#' in up)
-            and (' = ' in flat or '<' in flat or '>' in flat)
-            and ':=' not in flat
-        )
-        if not is_cond:
+    # ── HOLD MONITORS: HM_AT{g}/T_EXP{n} -> HM_{n}, T_DESC{n} -> description ──
+    hold = {}
+    hold_desc = {}
+    for m in re.finditer(r'NAME="HM_AT\d+/T_EXP(\d+)"', text):
+        n = int(m.group(1))
+        sub = text[m.start():m.start() + 6000]
+        ex = re.search(r'EXPRESSION="((?:[^"\\]|\\.)*)"', sub, re.DOTALL)
+        if not ex:
             continue
-        # strip leading comment blocks (* ... *)
-        cond = re.sub(r'\(\*.*?\*\)', '', flat).strip()
+        cond = re.sub(r'\(\*.*?\*\)', '', ex.group(1).replace('\r', ' ').replace('\n', ' ')).strip()
         if len(cond) < 6:
             continue
-        # split long AND-chains into individual device conditions for readability
-        # but keep the whole expression too
-        key = cond[:80]
-        if key in seen:
-            continue
-        seen.add(key)
+        if n not in hold:          # first (primary) expression for this slot
+            hold[n] = cond
+    for m in re.finditer(r'NAME="HM_AT\d+/T_DESC(\d+)"', text):
+        n = int(m.group(1))
+        sub = text[m.start():m.start() + 1500]
+        cv = re.search(r'(?:CV|EXPRESSION)="((?:[^"\\]|\\.)*)"', sub, re.DOTALL)
+        if cv:
+            d = re.sub(r'\(\*.*?\*\)', '', cv.group(1).replace('\r', ' ').replace('\n', ' ')).strip()
+            if d and n not in hold_desc:
+                hold_desc[n] = d
+    for n in sorted(hold):
+        monitors.append({'kind': 'Hold', 'name': f'HM_{n:02d}',
+                         'condition': hold[n][:400],
+                         'desc': hold_desc.get(n, '')})
 
-        # try to name it from a device token like //#CIRC_PMP_FAIL#
-        dev = re.search(r'//#([A-Z0-9_]+)#', cond)
-        name = dev.group(1) if dev else (re.search(r'([HS]M_\d+)', cond).group(1)
-                                          if re.search(r'([HS]M_\d+)', cond) else '')
-        monitors.append({
-            'kind': section,
-            'name': name,
-            'condition': cond[:400],
-        })
+    # ── SENTINEL MONITORS: SENTINEL_ENG/SM_CND_{n} + SM_DESC_{n} ────────────
+    sm_cnd, sm_desc = {}, {}
+    for m in re.finditer(r'ATTRIBUTE_INSTANCE\s+NAME="SENTINEL_ENG/SM_(CND|DESC)_(\d+)"', text):
+        kind, n = m.group(1), int(m.group(2))
+        b = _block_from(text, m.start())
+        ref = re.search(r'REF="([^"]*)"', b)
+        val = ref.group(1) if ref else ''
+        (sm_cnd if kind == 'CND' else sm_desc)[n] = val
+    for n in sorted(sm_cnd):
+        cnd = sm_cnd.get(n, ''); dsc = sm_desc.get(n, '')
+        if (not cnd) or ('DUMMY' in cnd.upper()) or ('DUMMY' in dsc.upper()):
+            continue               # skip unconfigured slots
+        device = dsc.lstrip('/') or cnd
+        monitors.append({'kind': 'Sentinel', 'name': f'SM_{n:02d}',
+                         'condition': cnd, 'desc': device})
+
     return monitors
 
 
@@ -392,8 +495,69 @@ def parse_phase_fhx(text):
         }
     # phase-wide extras (parameters + monitor conditions) attached to the dict
     blocks['__parameters__'] = parse_phase_parameters(text)
+    blocks['__attributes__'] = parse_phase_attributes(text)
     blocks['__monitors__']   = parse_monitor_conditions(text)
     return blocks
+
+
+def count_phase_classes(text):
+    """Return the list of PHASE_CLASS names present in the file."""
+    return re.findall(r'PHASE_CLASS\s+NAME="([^"]+)"', text)
+
+
+def parse_multiphase_fhx(text):
+    """Parse a multi-phase FHX export into {phase_name: phase_blocks}.
+
+    Structure: all FUNCTION_BLOCK_DEFINITIONs are a shared pool at the top; each
+    PHASE_CLASS block references (by composite name) the blocks it uses, and
+    contains its own PARAMETERs. We scope each phase to its referenced composites
+    plus its own parameters/monitors, so every downstream builder works per-phase.
+    """
+    instance_map = build_instance_map(text)
+
+    # 1) parse the shared pool of composites once (keep raw text for monitors)
+    pool = {}
+    pool_text = {}
+    for m in re.finditer(r'FUNCTION_BLOCK_DEFINITION\s+NAME="([^"]+)"[^\{]*\{', text):
+        name  = m.group(1)
+        block = extract_block(text, m.end()-1)
+        pool_text[name] = block
+        desc  = re.search(r'DESCRIPTION="([^"]+)"', block)
+        sfc_m = re.search(r'SFC_ALGORITHM\s*\{', block)
+        sfc   = extract_block(block, sfc_m.end()-1) if sfc_m else ''
+        pool[name] = {
+            'description':   desc.group(1) if desc else '',
+            'instance_name': instance_map.get(name, ''),
+            'sfc_data':      parse_sfc(sfc),
+        }
+    pool_names = set(pool.keys())
+
+    # 2) for each PHASE_CLASS, find its referenced composites + own params/monitors
+    phases = {}
+    for pm in re.finditer(r'PHASE_CLASS\s+NAME="([^"]+)"[^\{]*\{', text):
+        pname = pm.group(1)
+        pblk  = extract_block(text, pm.end()-1)
+        # referenced composites: any pool name appearing in this phase block
+        refs = [fn for fn in pool_names if fn in pblk]
+        blocks = {}
+        for fn in refs:
+            p = pool[fn]
+            blocks[fn] = {
+                'description':   p['description'],
+                'instance_name': p['instance_name'],
+                **p['sfc_data'],
+            }
+        # parameters scoped to this phase block
+        blocks['__parameters__'] = parse_phase_parameters(pblk)
+        blocks['__attributes__'] = parse_phase_attributes(pblk)
+        # monitors: Hold conditions live in the *_PH_FAIL_MON composite and
+        # Sentinel conditions in SENTINEL_ENG. Run extraction once over the
+        # combined text of all referenced composites so HM + SM are both caught
+        # without per-composite double counting.
+        combined = '\n'.join(pool_text[fn] for fn in refs)
+        blocks['__monitors__'] = parse_monitor_conditions(combined)
+        phases[pname] = blocks
+    return phases
 
 def build_phase_excel(blocks, fname, opts):
     wb = openpyxl.Workbook()
@@ -743,13 +907,16 @@ def build_sdem_excel(em_list, fname, opts):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def detect_fhx_type(text):
-    """Return 'recipe', 'phase', 'em_cd', or 'em_sd' by inspecting the FHX structure."""
+    """Return 'recipe', 'multiphase', 'phase', 'em_cd', or 'em_sd'."""
     if 'BATCH_RECIPE ' in text:
         return 'recipe'
     if 'STATE_DRIVEN_ALGORITHM' in text:
         return 'em_sd'
     if 'COMMAND_DRIVEN_ALGORITHM' in text:
         return 'em_cd'
+    # multiple PHASE_CLASS blocks => multi-phase export
+    if len(re.findall(r'PHASE_CLASS\s+NAME="', text)) > 1:
+        return 'multiphase'
     return 'phase'
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1208,6 +1375,115 @@ def _add_table(ws, first_row, last_row, n_cols, name):
         pass
 
 
+def build_multiphase_data_excel(phases, fname, opts):
+    """Combined data workbook across many phases. Shared Parameters / Monitors /
+    Actions tables carry a Phase column so you can filter; plus a Phases summary
+    sheet and one diagram image sheet per phase's primary (RUN) logic block."""
+    from openpyxl.utils import get_column_letter
+    wb = openpyxl.Workbook()
+
+    def hdr(ws, row, headers, widths):
+        for ci, (h, w) in enumerate(zip(headers, widths), 1):
+            sc(ws, row, ci, h, bold=True, fc='FFFFFF', fill=BLUE_H, h='left')
+            ws.column_dimensions[get_column_letter(ci)].width = w
+        ws.row_dimensions[row].height = 18
+
+    def title(ws, span, text):
+        _safe_merge_and_write(ws, 1, 1, 1, span,
+            value=f"  {text}", font=wf(True, 13, 'FFFFFF'), fill=NAVY,
+            alignment=Alignment(horizontal='left', vertical='center'), border=BORD)
+        ws.row_dimensions[1].height = 26
+
+    # ── PHASES summary ───────────────────────────────────────────────────────
+    ws = wb.active; ws.title = 'PHASES'
+    ws.sheet_view.showGridLines = False
+    title(ws, 6, f"{fname} — {len(phases)} Phases")
+    hdr(ws, 2, ['Phase', 'Logic Blocks', 'Steps', 'Actions', 'Parameters', 'Monitors'],
+        [26, 12, 8, 9, 11, 10])
+    ws.freeze_panes = 'A3'
+    r = 3
+    for pn, blocks in phases.items():
+        nblk = sum(1 for _ in real_blocks(blocks))
+        nsteps = sum(len(b.get('ordered_steps', [])) for _, b in real_blocks(blocks))
+        nact = sum(len(s[1].get('actions', [])) for _, b in real_blocks(blocks)
+                   for s in b.get('ordered_steps', []))
+        sc(ws, r, 1, pn); sc(ws, r, 2, nblk, h='center')
+        sc(ws, r, 3, nsteps, h='center'); sc(ws, r, 4, nact, h='center')
+        sc(ws, r, 5, len(blocks.get('__parameters__', [])), h='center')
+        sc(ws, r, 6, len(blocks.get('__monitors__', [])), h='center')
+        r += 1
+    _add_table(ws, 2, r-1, 6, 'tblPhases')
+
+    # ── PARAMETERS (all phases) ──────────────────────────────────────────────
+    ws = wb.create_sheet('PARAMETERS')
+    ws.sheet_view.showGridLines = False
+    title(ws, 5, f"{fname} — Parameters (all phases)")
+    hdr(ws, 2, ['Phase', 'Parameter', 'Class', 'Dir', 'Description', 'Default', 'Low', 'High', 'Units', 'Group'],
+        [20, 26, 9, 7, 34, 11, 9, 9, 8, 13])
+    ws.freeze_panes = 'A3'
+    r = 3
+    for pn, blocks in phases.items():
+        for p in blocks.get('__parameters__', []):
+            sc(ws, r, 1, pn); sc(ws, r, 2, p['name']); sc(ws, r, 3, p.get('class',''), h='center')
+            sc(ws, r, 4, p.get('direction',''), h='center')
+            sc(ws, r, 5, p['desc'])
+            sc(ws, r, 6, p.get('default',''), h='center')
+            sc(ws, r, 7, p.get('low',''), h='center')
+            sc(ws, r, 8, p.get('high',''), h='center')
+            sc(ws, r, 9, p.get('units',''), h='center')
+            sc(ws, r, 10, p['group'])
+            r += 1
+    _add_table(ws, 2, r-1, 10, 'tblParameters')
+
+    # ── MONITORS (all phases) ────────────────────────────────────────────────
+    ws = wb.create_sheet('MONITORS')
+    ws.sheet_view.showGridLines = False
+    title(ws, 4, f"{fname} — Monitor Conditions (all phases)")
+    hdr(ws, 2, ['Phase', 'Type', 'Name', 'Description', 'Condition'], [22, 11, 16, 34, 85])
+    ws.freeze_panes = 'A3'
+    kind_fill = {'Hold': ORANGE_H, 'Sentinel': PatternFill('solid', start_color='4A3D6B'),
+                 'Failure': PatternFill('solid', start_color='6B3D3D')}
+    r = 3
+    for pn, blocks in phases.items():
+        for k in ('Hold', 'Sentinel', 'Failure'):
+            for m in [x for x in blocks.get('__monitors__', []) if x['kind'] == k]:
+                sc(ws, r, 1, pn)
+                sc(ws, r, 2, k, fc='FFFFFF', fill=kind_fill.get(k), h='center')
+                sc(ws, r, 3, m['name']); sc(ws, r, 4, m.get('desc', ''))
+                sc(ws, r, 5, m['condition'], wrap=True)
+                r += 1
+    _add_table(ws, 2, r-1, 5, 'tblMonitors')
+
+    # ── ACTIONS (all phases) ─────────────────────────────────────────────────
+    ws = wb.create_sheet('ACTIONS')
+    ws.sheet_view.showGridLines = False
+    title(ws, 9, f"{fname} — Step Actions (all phases)")
+    hdr(ws, 2, ['Phase', 'Block', 'Step', 'Action', 'Qual', 'Description',
+                'Expression', 'Delay', 'Confirm'],
+        [20, 18, 16, 9, 6, 28, 50, 8, 26])
+    ws.freeze_panes = 'A3'
+    r = 3
+    for pn, blocks in phases.items():
+        used = set()
+        for fb, data in real_blocks(blocks):
+            lbl = derive_phase_label(fb, data.get('instance_name',''),
+                                     data.get('description',''), used)
+            for sn, sd in data.get('ordered_steps', []):
+                for a in sd.get('actions', []):
+                    sc(ws, r, 1, pn); sc(ws, r, 2, lbl); sc(ws, r, 3, sn)
+                    sc(ws, r, 4, a.get('action','') or a.get('action_id',''))
+                    sc(ws, r, 5, a.get('qualifier',''), h='center')
+                    sc(ws, r, 6, a.get('description',''))
+                    sc(ws, r, 7, (a.get('expression','') or '').replace('\r',' ').replace('\n',' '), wrap=True)
+                    sc(ws, r, 8, a.get('delay_time',''), h='center')
+                    sc(ws, r, 9, (a.get('confirm_expression','') or '').replace('\r',' ').replace('\n',' '))
+                    r += 1
+    _add_table(ws, 2, r-1, 9, 'tblActions')
+
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    return buf
+
+
 def build_phase_data_excel(blocks, fname, opts):
     """Professional data-focused workbook: Summary, Parameters, Monitors, Actions,
     plus one SFC diagram image sheet per logic block. Tabular sheets use Excel
@@ -1259,20 +1535,42 @@ def build_phase_data_excel(blocks, fname, opts):
     ws = wb.create_sheet('PARAMETERS')
     ws.sheet_view.showGridLines = False
     title(ws, 4, f"{fname} — Phase Parameters")
-    hdr(ws, 2, ['Parameter', 'ID', 'Group', 'Description'], [30, 8, 18, 55])
+    hdr(ws, 2, ['Parameter', 'Class', 'Dir', 'Description', 'Default', 'Low', 'High', 'Units', 'Group'],
+        [28, 9, 7, 38, 11, 10, 10, 8, 14])
     ws.freeze_panes = 'A3'
     r = 3
     for p in params:
-        sc(ws, r, 1, p['name']); sc(ws, r, 2, p['id'], h='center')
-        sc(ws, r, 3, p['group']); sc(ws, r, 4, p['desc'])
+        sc(ws, r, 1, p['name']); sc(ws, r, 2, p.get('class',''), h='center')
+        sc(ws, r, 3, p.get('direction',''), h='center')
+        sc(ws, r, 4, p['desc'])
+        sc(ws, r, 5, p.get('default',''), h='center')
+        sc(ws, r, 6, p.get('low',''), h='center')
+        sc(ws, r, 7, p.get('high',''), h='center')
+        sc(ws, r, 8, p.get('units',''), h='center')
+        sc(ws, r, 9, p['group'])
         r += 1
-    _add_table(ws, 2, r-1, 4, 'tblParameters')
+    _add_table(ws, 2, r-1, 9, 'tblParameters')
+
+    # ── PHASE ATTRIBUTES (P_* internal working variables) ────────────────────
+    attributes = blocks.get('__attributes__', [])
+    if attributes:
+        ws = wb.create_sheet('ATTRIBUTES')
+        ws.sheet_view.showGridLines = False
+        title(ws, 4, f"{fname} — Phase Attributes (internal P_* variables)")
+        hdr(ws, 2, ['Attribute', 'Type', 'Description', 'Group'], [28, 18, 50, 16])
+        ws.freeze_panes = 'A3'
+        r = 3
+        for a in attributes:
+            sc(ws, r, 1, a['name']); sc(ws, r, 2, a.get('type',''))
+            sc(ws, r, 3, a.get('desc','')); sc(ws, r, 4, a.get('group',''))
+            r += 1
+        _add_table(ws, 2, r-1, 4, 'tblAttributes')
 
     # ── MONITORS ─────────────────────────────────────────────────────────────
     ws = wb.create_sheet('MONITORS')
     ws.sheet_view.showGridLines = False
     title(ws, 3, f"{fname} — Monitor Conditions (Hold / Sentinel / Failure)")
-    hdr(ws, 2, ['Type', 'Name', 'Condition'], [12, 22, 110])
+    hdr(ws, 2, ['Type', 'Name', 'Description', 'Condition'], [12, 16, 36, 95])
     ws.freeze_panes = 'A3'
     kind_fill = {'Hold': ORANGE_H,
                  'Sentinel': PatternFill('solid', start_color='4A3D6B'),
@@ -1282,9 +1580,10 @@ def build_phase_data_excel(blocks, fname, opts):
         for m in [x for x in monitors if x['kind'] == k]:
             sc(ws, r, 1, k, fc='FFFFFF', fill=kind_fill.get(k), h='center')
             sc(ws, r, 2, m['name'])
-            sc(ws, r, 3, m['condition'], wrap=True)
+            sc(ws, r, 3, m.get('desc', ''))
+            sc(ws, r, 4, m['condition'], wrap=True)
             r += 1
-    _add_table(ws, 2, r-1, 3, 'tblMonitors')
+    _add_table(ws, 2, r-1, 4, 'tblMonitors')
 
     # ── ACTIONS ──────────────────────────────────────────────────────────────
     ws = wb.create_sheet('ACTIONS')
@@ -1710,7 +2009,7 @@ def build_dds_word(parsed_data, fhx_type, fname, opts):
     if fhx_type == 'phase':
         used = set()
         for fb, data in parsed_data.items():
-            if fb in ('__parameters__', '__monitors__'):
+            if fb in ('__parameters__', '__monitors__', '__attributes__'):
                 continue
             lbl = derive_phase_label(fb, data.get('instance_name',''),
                                      data.get('description',''), used)
@@ -1798,6 +2097,20 @@ def build_dds_word(parsed_data, fhx_type, fname, opts):
 
 def parse_and_build(text, fhx_type, fname, opts, output_format='excel'):
     """Parse text and build output. Returns (buf, sheet_names_or_none)."""
+    if fhx_type == 'multiphase':
+        phases = parse_multiphase_fhx(text)
+        if not phases:
+            raise ValueError('No PHASE_CLASS blocks found.')
+        if output_format == 'diagram_html':
+            import sfc_html, io as _io
+            doc = sfc_html.build_multiphase_html(phases, fname, opts)
+            buf = _io.BytesIO(doc.encode('utf-8')); buf.seek(0)
+            return buf, None
+        if output_format == 'data_excel':
+            return build_multiphase_data_excel(phases, fname, opts), None
+        # default for multiphase: data workbook (most useful bulk view)
+        return build_multiphase_data_excel(phases, fname, opts), None
+
     if fhx_type == 'phase':
         data = parse_phase_fhx(text)
         if not data:

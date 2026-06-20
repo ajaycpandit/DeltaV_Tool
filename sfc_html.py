@@ -329,13 +329,14 @@ function showSpecial(which){
   document.querySelector('.wrap').classList.add('special-mode');
   if(which==='__params__'){
     const byGroup={};
-    EXTRA.params.forEach(p=>{(byGroup[p.group||'(ungrouped)']=byGroup[p.group||'(ungrouped)']||[]).push(p);});
+    EXTRA.params.forEach(p=>{(byGroup[p.class||'(other)']=byGroup[p.class||'(other)']||[]).push(p);});
     let h='<h2>Phase Parameters ('+EXTRA.params.length+')</h2>';
     h+='<input id="pq" placeholder="Filter parameters…" oninput="filterSpecial(\\'param\\')">';
-    h+='<div class="sscroll"><table id="ptable"><thead><tr><th>Name</th><th>ID</th><th>Group</th><th>Description</th></tr></thead><tbody>';
-    Object.keys(byGroup).sort().forEach(g=>{
-      h+='<tr class="grp"><td colspan="4">'+esc(g)+'</td></tr>';
-      byGroup[g].forEach(p=>{h+='<tr class="prow"><td>'+esc(p.name)+'</td><td>'+esc(p.id)+'</td><td>'+esc(p.group)+'</td><td>'+esc(p.desc)+'</td></tr>';});
+    h+='<div class="sscroll"><table id="ptable"><thead><tr><th>Name</th><th>Class</th><th>Dir</th><th>Description</th><th>Default</th><th>Low</th><th>High</th><th>Units</th><th>Group</th></tr></thead><tbody>';
+    var classOrder=['Recipe','Phase','Report','(other)'];
+    Object.keys(byGroup).sort((a,b)=>{var ia=classOrder.indexOf(a),ib=classOrder.indexOf(b);return (ia<0?99:ia)-(ib<0?99:ib);}).forEach(g=>{
+      h+='<tr class="grp"><td colspan="9">'+esc(g)+' ('+byGroup[g].length+')</td></tr>';
+      byGroup[g].forEach(p=>{h+='<tr class="prow"><td>'+esc(p.name)+'</td><td>'+esc(p.class||'')+'</td><td>'+esc(p.direction||'')+'</td><td>'+esc(p.desc)+'</td><td>'+esc(p.default||'')+'</td><td>'+esc(p.low||'')+'</td><td>'+esc(p.high||'')+'</td><td>'+esc(p.units||'')+'</td><td>'+esc(p.group)+'</td></tr>';});
     });
     h+='</tbody></table></div>';
     sp.innerHTML=h;
@@ -344,11 +345,24 @@ function showSpecial(which){
     EXTRA.monitors.forEach(m=>{(byKind[m.kind]=byKind[m.kind]||[]).push(m);});
     let h='<h2>Monitor Conditions ('+EXTRA.monitors.length+')</h2>';
     h+='<input id="mq" placeholder="Filter conditions…" oninput="filterSpecial(\\'mon\\')">';
-    h+='<div class="sscroll"><table id="mtable"><thead><tr><th>Type</th><th>Name</th><th>Condition</th></tr></thead><tbody>';
+    h+='<div class="sscroll"><table id="mtable"><thead><tr><th>Type</th><th>Name</th><th>Description</th><th>Condition</th></tr></thead><tbody>';
     ['Hold','Sentinel','Failure'].forEach(k=>{
       const items=byKind[k]||[]; if(!items.length)return;
-      h+='<tr class="grp"><td colspan="3">'+k+' Monitor ('+items.length+')</td></tr>';
-      items.forEach(m=>{h+='<tr class="mrow"><td><span class="kind '+k.toLowerCase()+'">'+k+'</span></td><td>'+esc(m.name)+'</td><td class="expr">'+esc(m.condition)+'</td></tr>';});
+      h+='<tr class="grp"><td colspan="4">'+k+' Monitor ('+items.length+')</td></tr>';
+      items.forEach(m=>{h+='<tr class="mrow"><td><span class="kind '+k.toLowerCase()+'">'+k+'</span></td><td>'+esc(m.name)+'</td><td>'+esc(m.desc||'')+'</td><td class="expr">'+esc(m.condition)+'</td></tr>';});
+    });
+    h+='</tbody></table></div>';
+    sp.innerHTML=h;
+  } else if(which==='__attrs__'){
+    const byGroup={};
+    EXTRA.attributes.forEach(a=>{(byGroup[a.group||'(ungrouped)']=byGroup[a.group||'(ungrouped)']||[]).push(a);});
+    let h='<h2>Phase Attributes ('+EXTRA.attributes.length+')</h2>';
+    h+='<p style="color:#64748b;font-size:12px;margin:0 0 10px">Internal phase working variables (P_*) — counters, flags, timers, calculated values. Declared as attributes, not formal parameters.</p>';
+    h+='<input id="aq" placeholder="Filter attributes…" oninput="filterSpecial(\\'attr\\')">';
+    h+='<div class="sscroll"><table id="atable"><thead><tr><th>Name</th><th>Type</th><th>Description</th><th>Group</th></tr></thead><tbody>';
+    Object.keys(byGroup).sort().forEach(g=>{
+      h+='<tr class="grp"><td colspan="4">'+esc(g)+' ('+byGroup[g].length+')</td></tr>';
+      byGroup[g].forEach(a=>{h+='<tr class="arow2"><td>'+esc(a.name)+'</td><td>'+esc(a.type||'')+'</td><td>'+esc(a.desc||'')+'</td><td>'+esc(a.group||'')+'</td></tr>';});
     });
     h+='</tbody></table></div>';
     sp.innerHTML=h;
@@ -356,9 +370,10 @@ function showSpecial(which){
 }
 
 function filterSpecial(kind){
-  const q=(document.getElementById(kind==='param'?'pq':'mq').value||'').toLowerCase();
-  const sel=kind==='param'?'#ptable tr.prow':'#mtable tr.mrow';
-  document.querySelectorAll(sel).forEach(tr=>{
+  const idmap={param:'pq',mon:'mq',attr:'aq'};
+  const selmap={param:'#ptable tr.prow',mon:'#mtable tr.mrow',attr:'#atable tr.arow2'};
+  const q=(document.getElementById(idmap[kind]).value||'').toLowerCase();
+  document.querySelectorAll(selmap[kind]).forEach(tr=>{
     tr.classList.toggle('hidden', q && !tr.textContent.toLowerCase().includes(q));
   });
 }
@@ -502,11 +517,12 @@ def build_sfc_html(blocks, fname, opts=None):
     opts = opts or {}
     params  = blocks.get('__parameters__', [])
     monitors = blocks.get('__monitors__', [])
+    attributes = blocks.get('__attributes__', [])
 
     block_layouts = {}
     friendly = {}     # key -> display name
     for name, data in blocks.items():
-        if name in ('__parameters__', '__monitors__'):
+        if name in ('__parameters__', '__monitors__', '__attributes__'):
             continue
         L = _layout(data)
         if L:
@@ -530,13 +546,15 @@ def build_sfc_html(blocks, fname, opts=None):
         )
         data_json[name] = _block_data_json(L)
 
-    # special tabs: Parameters, Monitors
+    # special tabs: Parameters, Phase Attributes, Monitors
     tabs.append('<button class="tab special" data-k="__params__" '
                 'onclick="showSpecial(\'__params__\')">⚙ Parameters</button>')
+    tabs.append('<button class="tab special" data-k="__attrs__" '
+                'onclick="showSpecial(\'__attrs__\')">🔧 Phase Attributes</button>')
     tabs.append('<button class="tab special" data-k="__monitors__" '
                 'onclick="showSpecial(\'__monitors__\')">⚠ Monitors</button>')
 
-    extra = {'params': params, 'monitors': monitors}
+    extra = {'params': params, 'monitors': monitors, 'attributes': attributes}
     js = _JS.replace('__DATA__', json.dumps(data_json)).replace('__EXTRA__', json.dumps(extra))
 
     htmldoc = f"""<!DOCTYPE html>
@@ -575,3 +593,54 @@ def build_sfc_html(blocks, fname, opts=None):
 <script>{js}</script>
 </body></html>"""
     return htmldoc
+
+
+def build_multiphase_html(phases, fname, opts=None):
+    """Multi-phase interactive page: a phase dropdown switches between phases,
+    each rendered with the full single-phase UI (diagram tabs, panel, table,
+    Parameters & Monitors). Implemented by embedding each phase as a complete
+    self-contained document inside an iframe (srcdoc), which keeps each phase's
+    JS/IDs isolated and reliable."""
+    opts = opts or {}
+    import html as _html
+    options = []
+    frames = []
+    for i, (pn, blocks) in enumerate(phases.items()):
+        doc = build_sfc_html(blocks, f"{fname} — {pn}", opts)
+        # escape for srcdoc attribute
+        srcdoc = doc.replace('&', '&amp;').replace('"', '&quot;')
+        options.append(f'<option value="{i}">{_html.escape(pn)}</option>')
+        frames.append(
+            f'<iframe class="pframe{" on" if i==0 else ""}" data-i="{i}" '
+            f'srcdoc="{srcdoc}"></iframe>'
+        )
+
+    css = """
+    *{box-sizing:border-box}
+    body{margin:0;font:14px -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#0f172a;height:100vh;display:flex;flex-direction:column}
+    .mbar{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:10px 18px;background:#0f172a;color:#fff;border-bottom:1px solid #334155}
+    .mbar h1{font-size:15px;margin:0;font-weight:600}
+    .mbar .sub{color:#94a3b8;font-size:12px}
+    .mbar select{margin-left:auto;padding:7px 12px;border-radius:6px;border:1px solid #475569;background:#1e293b;color:#fff;font-size:13px;min-width:220px}
+    .frames{flex:1 1 auto;position:relative;background:#f8fafc}
+    .pframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:none;background:#fff}
+    .pframe.on{display:block}
+    """
+    js = """
+    function showPhase(i){
+      document.querySelectorAll('.pframe').forEach(f=>f.classList.toggle('on',f.dataset.i===String(i)));
+    }
+    document.getElementById('psel').addEventListener('change',e=>showPhase(e.target.value));
+    """
+    return f"""<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{_html.escape(fname)} — {len(phases)} Phases</title>
+<style>{css}</style></head><body>
+<div class="mbar">
+  <h1>{_html.escape(fname)}</h1>
+  <span class="sub">{len(phases)} phases</span>
+  <select id="psel">{''.join(options)}</select>
+</div>
+<div class="frames">{''.join(frames)}</div>
+<script>{js}</script>
+</body></html>"""
